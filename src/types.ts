@@ -45,11 +45,15 @@ export interface BuyerInfo {
   buyerName: string;
   company: string;
   country: string;
+  /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   city: string;
+  /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   email: string;
   phone: string;
   interestedProducts: string;
+  /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   meetingCount: number;
+  passportNumber: string;
 }
 
 export interface MoUOutcome {

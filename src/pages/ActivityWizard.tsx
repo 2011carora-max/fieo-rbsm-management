@@ -1,6 +1,6 @@
 import type { Activity, Currency, DocumentKind, EventType, StoredDocument } from '@/types';
 import { COUNTRIES, CURRENCIES, EVENT_TYPES, PRODUCT_CATEGORIES, REGIONAL_OFFICES } from '@/types';
-import { useState, useId, cloneElement, isValidElement, type ReactElement } from 'react';
+import { useState, useEffect, useId, cloneElement, isValidElement, type ReactElement } from 'react';
 import {
   CalendarDays, Building2, Users, Handshake, ShoppingCart, MessageSquare,
   Check, ChevronLeft, ChevronRight, Upload, FileText, X, Save, AlertCircle,
@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { nextActivityId, saveDraft, loadDraft } from '@/data/repository';
-import { validateActivity, isDuplicateActivity } from '@/data/validation';
+import { validateActivity, isDuplicateActivity, passportFormatHint } from '@/data/validation';
 
 const STEPS = [
   { id: 1, label: 'Event Details', icon: CalendarDays },
@@ -25,7 +25,7 @@ function emptyActivity(id: string, createdBy: string, createdByName: string, rol
     id,
     event: { regionalOffice: role === 'regional' ? office : '', bsmName: '', eventDate: '', venue: '', city: '', state: '', country: 'India', eventType: 'Buyer-Seller Meet', exporterCount: 0, buyerCount: 0 },
     exporter: { exporterName: '', iecNumber: '', companyName: '', productCategory: '', email: '', phone: '', website: '', address: '' },
-    buyer: { buyerName: '', company: '', country: '', city: '', email: '', phone: '', interestedProducts: '', meetingCount: 1 },
+    buyer: { buyerName: '', company: '', country: '', city: '', email: '', phone: '', interestedProducts: '', meetingCount: 1, passportNumber: '' },
     mou: { signed: false },
     orderInProcess: { active: false },
     orderPlaced: { placed: false },
@@ -62,6 +62,24 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
   // isn't used (it can delete another user's concurrently-added document).
   const [initialDocIds, setInitialDocIds] = useState<Set<string>>(new Set());
   const [removedDocumentIds, setRemovedDocumentIds] = useState<string[]>([]);
+  // Tracks whether the Interested Products field is in free-text "Other" mode,
+  // separate from the stored value itself (which may legitimately be empty
+  // while the user is still typing their custom entry).
+  const [buyerProductMode, setBuyerProductMode] = useState<'category' | 'other'>('category');
+
+  // Reverse BSM collects Exporter Details / Outcome Tracking / Remarks & Documents.
+  // Every other event type (Buyer-Seller Meet, Trade Delegation, Virtual BSM, Exhibition)
+  // only collects Buyer Details. Event Details is always required.
+  const isReverseBSM = activity.event.eventType === 'Reverse BSM';
+  const activeStepIds = isReverseBSM ? [1, 2, 4, 5] : [1, 3];
+
+  // If the event type changes such that the current step is no longer part of
+  // the applicable flow (e.g. user was on Buyer Details and switched to
+  // Reverse BSM), snap back to the first applicable step.
+  useEffect(() => {
+    if (!activeStepIds.includes(step)) setStep(activeStepIds[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReverseBSM]);
 
   // Reset when opening with a different record.
   const [lastKey, setLastKey] = useState<string>('');
@@ -91,6 +109,11 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
     setActivity(initial);
     setInitialDocIds(new Set(initial.documents.map((d) => d.id)));
     setRemovedDocumentIds([]);
+    setBuyerProductMode(
+      initial.buyer.interestedProducts && !PRODUCT_CATEGORIES.includes(initial.buyer.interestedProducts)
+        ? 'other'
+        : 'category',
+    );
     setStep(1);
     setErrors({});
   }
@@ -108,7 +131,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
     const stepFields: Record<number, string[]> = {
       1: ['event.regionalOffice', 'event.eventDate'],
       2: ['exporter.exporterName', 'exporter.productCategory', 'exporter.iecNumber', 'exporter.email', 'exporter.phone'],
-      3: ['buyer.buyerName', 'buyer.country', 'buyer.email', 'buyer.phone'],
+      3: ['buyer.buyerName', 'buyer.country', 'buyer.phone', 'buyer.passportNumber'],
       4: [],
       5: [],
     };
@@ -123,8 +146,19 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
     return true;
   };
 
-  const next = () => { if (validateStep(step)) setStep((s) => Math.min(5, s + 1)); };
-  const back = () => setStep((s) => Math.max(1, s - 1));
+  const next = () => {
+    if (!validateStep(step)) return;
+    const idx = activeStepIds.indexOf(step);
+    const nextId = activeStepIds[idx + 1];
+    if (nextId !== undefined) setStep(nextId);
+  };
+  const back = () => {
+    const idx = activeStepIds.indexOf(step);
+    const prevId = activeStepIds[idx - 1];
+    if (prevId !== undefined) setStep(prevId);
+  };
+  const isFirstActiveStep = step === activeStepIds[0];
+  const isLastActiveStep = step === activeStepIds[activeStepIds.length - 1];
 
   const submit = async () => {
     // Validate all steps
@@ -181,10 +215,10 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
             {editing ? 'Editing existing record' : 'Draft auto-saved'}
           </div>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={step > 1 ? back : onClose}>
-              <ChevronLeft size={16} /> {step > 1 ? 'Back' : 'Cancel'}
+            <button className="btn-secondary" onClick={isFirstActiveStep ? onClose : back}>
+              <ChevronLeft size={16} /> {isFirstActiveStep ? 'Cancel' : 'Back'}
             </button>
-            {step < 5 ? (
+            {!isLastActiveStep ? (
               <button className="btn-primary" onClick={next}>Next <ChevronRight size={16} /></button>
             ) : (
               <button className="btn-primary" onClick={submit} disabled={saving}>
@@ -198,7 +232,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
     >
       {/* Stepper */}
       <ol className="flex items-center mb-6 overflow-x-auto pb-1">
-        {STEPS.map((s, i) => {
+        {STEPS.filter((s) => activeStepIds.includes(s.id)).map((s, i, visible) => {
           const done = step > s.id;
           const active = step === s.id;
           const Icon = s.icon;
@@ -224,11 +258,16 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
                 </span>
                 <span className="hidden sm:inline">{s.label}</span>
               </button>
-              {i < STEPS.length - 1 && <span className={cn('w-6 sm:w-10 h-px mx-1', done ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700')} />}
+              {i < visible.length - 1 && <span className={cn('w-6 sm:w-10 h-px mx-1', done ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700')} />}
             </li>
           );
         })}
       </ol>
+      <p className="text-xs text-gray-400 -mt-4 mb-4">
+        {isReverseBSM
+          ? 'Reverse BSM: enter Exporter Details, Outcome Tracking and Remarks & Documents.'
+          : 'Enter Buyer Details for this event.'}
+      </p>
 
       <div className="animate-fade-in">
         {step === 1 && (
@@ -311,29 +350,63 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
             <Field label="Buyer Name" required error={err('buyer.buyerName')}>
               <input className="input" value={activity.buyer.buyerName} onChange={(e) => update({ buyer: { ...activity.buyer, buyerName: e.target.value } })} placeholder="Contact person" />
             </Field>
-            <Field label="Company">
+            <Field label="Company Name">
               <input className="input" value={activity.buyer.company} onChange={(e) => update({ buyer: { ...activity.buyer, company: e.target.value } })} />
             </Field>
             <Field label="Country" required error={err('buyer.country')}>
-              <select className="input" value={activity.buyer.country} onChange={(e) => update({ buyer: { ...activity.buyer, country: e.target.value } })}>
+              <select
+                className="input"
+                value={activity.buyer.country}
+                onChange={(e) => update({ buyer: { ...activity.buyer, country: e.target.value } })}
+              >
                 <option value="">Select country…</option>
                 {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="City">
-              <input className="input" value={activity.buyer.city} onChange={(e) => update({ buyer: { ...activity.buyer, city: e.target.value } })} />
+            <Field label="Phone / WhatsApp Number" required error={err('buyer.phone')}>
+              <input className="input" value={activity.buyer.phone} onChange={(e) => update({ buyer: { ...activity.buyer, phone: e.target.value } })} placeholder="+1 555XXXXXXX" />
             </Field>
-            <Field label="Email" error={err('buyer.email')}>
-              <input type="email" className="input" value={activity.buyer.email} onChange={(e) => update({ buyer: { ...activity.buyer, email: e.target.value } })} />
+            <Field
+              label="Passport Number"
+              required
+              error={err('buyer.passportNumber')}
+              hint={activity.buyer.country ? passportFormatHint(activity.buyer.country) : 'Select a country first'}
+            >
+              <input
+                className="input uppercase"
+                disabled={!activity.buyer.country}
+                value={activity.buyer.passportNumber}
+                onChange={(e) => update({ buyer: { ...activity.buyer, passportNumber: e.target.value.toUpperCase() } })}
+                placeholder="e.g. A1234567"
+              />
             </Field>
-            <Field label="Phone" error={err('buyer.phone')}>
-              <input className="input" value={activity.buyer.phone} onChange={(e) => update({ buyer: { ...activity.buyer, phone: e.target.value } })} />
-            </Field>
-            <Field label="Interested Products">
-              <input className="input" value={activity.buyer.interestedProducts} onChange={(e) => update({ buyer: { ...activity.buyer, interestedProducts: e.target.value } })} placeholder="Product categories of interest" />
-            </Field>
-            <Field label="Meeting Count">
-              <input type="number" min="1" className="input" value={activity.buyer.meetingCount} onChange={(e) => update({ buyer: { ...activity.buyer, meetingCount: +e.target.value } })} />
+            <Field label="Interested Products" className="sm:col-span-2">
+              <select
+                className="input"
+                value={buyerProductMode === 'other' ? 'Other' : activity.buyer.interestedProducts}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'Other') {
+                    setBuyerProductMode('other');
+                    update({ buyer: { ...activity.buyer, interestedProducts: '' } });
+                  } else {
+                    setBuyerProductMode('category');
+                    update({ buyer: { ...activity.buyer, interestedProducts: v } });
+                  }
+                }}
+              >
+                <option value="">Select product category…</option>
+                {PRODUCT_CATEGORIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {buyerProductMode === 'other' && (
+                <input
+                  className="input mt-2"
+                  value={activity.buyer.interestedProducts}
+                  onChange={(e) => update({ buyer: { ...activity.buyer, interestedProducts: e.target.value } })}
+                  placeholder="Describe the products the buyer is interested in"
+                  autoFocus
+                />
+              )}
             </Field>
           </div>
         )}

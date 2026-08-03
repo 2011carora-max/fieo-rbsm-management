@@ -1,158 +1,143 @@
+import {
+  MapPin, CalendarDays, Building2, Users, Handshake, ShoppingCart, Package,
+  FileText, MessageSquare, Clock, Globe2, Phone, Mail, Hash, Tag,
+} from 'lucide-react';
+import { Modal } from '@/components/Modal';
+import { formatFullCurrency } from '@/data/analytics';
 import type { Activity } from '@/types';
 import { officeName } from '@/types';
 
-// Export helpers — CSV (Excel-compatible) and a print-ready HTML document
-// that opens in a new window and triggers the print dialog. The same HTML
-// can be saved as PDF via the browser's "Save as PDF" destination.
+// Read-only detail view of a single activity, laid out as a printable summary.
+export function ActivityViewModal({ open, onClose, activity }: { open: boolean; onClose: () => void; activity: Activity | null }) {
+  if (!activity) return null;
+  const a = activity;
+  const isReverseBSM = a.event.eventType === 'Reverse BSM';
 
-const HEADERS = [
-  'Activity ID', 'Regional Office', 'BSM Name', 'Event Date', 'Venue', 'City', 'Country',
-  'Event Type', 'Exporters', 'Buyers',
-  'Exporter Name', 'IEC', 'Company', 'Product Category', 'Exporter Email', 'Exporter Phone',
-  'Buyer Name', 'Buyer Company', 'Buyer Country', 'Buyer City', 'Buyer Email', 'Buyer Phone',
-  'MoU Signed', 'MoU Expected Value', 'MoU Currency', 'MoU Timeline',
-  'Order In Process', 'Estimated Value', 'Order Currency', 'Expected Closure', 'Probability',
-  'Order Placed', 'Final Value', 'PO Number', 'Order Date',
-  'Status', 'Created By', 'Next Follow-up',
-];
-
-function activityRow(a: Activity): (string | number)[] {
-  return [
-    a.id, officeName(a.event.regionalOffice), a.event.bsmName, a.event.eventDate, a.event.venue, a.event.city, a.event.country,
-    a.event.eventType, a.event.exporterCount, a.event.buyerCount,
-    a.exporter.exporterName, a.exporter.iecNumber, a.exporter.companyName, a.exporter.productCategory, a.exporter.email, a.exporter.phone,
-    a.buyer.buyerName, a.buyer.company, a.buyer.country, a.buyer.city, a.buyer.email, a.buyer.phone,
-    a.mou.signed ? 'Yes' : 'No', a.mou.expectedValue ?? '', a.mou.currency ?? '', a.mou.expectedTimeline ?? '',
-    a.orderInProcess.active ? 'Yes' : 'No', a.orderInProcess.estimatedValue ?? '', a.orderInProcess.currency ?? '', a.orderInProcess.expectedClosureDate ?? '', a.orderInProcess.probability ?? '',
-    a.orderPlaced.placed ? 'Yes' : 'No', a.orderPlaced.finalValue ?? '', a.orderPlaced.purchaseOrderNumber ?? '', a.orderPlaced.orderDate ?? '',
-    a.status, a.createdByName, a.remarks.nextFollowUpDate ?? '',
-  ];
-}
-
-function csvEscape(v: string | number): string {
-  const s = String(v ?? '');
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-export function activitiesToCsv(activities: Activity[]): string {
-  const rows = [HEADERS.join(','), ...activities.map((a) => activityRow(a).map(csvEscape).join(','))];
-  return rows.join('\n');
-}
-
-export function downloadCsv(activities: Activity[], filename: string): void {
-  const csv = activitiesToCsv(activities);
-  // Prepend BOM so Excel reads UTF-8 correctly.
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-// ---------- Printable report ----------
-
-export interface ReportMeta {
-  title: string;
-  preparedBy: string;
-  filters: string[];
-}
-
-export function printReport(activities: Activity[], meta: ReportMeta): void {
-  const w = window.open('', '_blank', 'width=1000,height=700');
-  if (!w) {
-    alert('Please allow pop-ups to print the report.');
-    return;
-  }
-  const date = new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
-  const rowsHtml = activities.length
-    ? activities.map((a, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${a.id}</td>
-        <td>${officeName(a.event.regionalOffice)}</td>
-        <td>${a.event.eventDate}</td>
-        <td>${a.exporter.exporterName}</td>
-        <td>${a.buyer.buyerName}</td>
-        <td>${a.buyer.country}</td>
-        <td>${a.exporter.productCategory}</td>
-        <td>${a.mou.signed ? 'Yes' : 'No'}</td>
-        <td>${a.orderInProcess.active ? 'Yes' : 'No'}</td>
-        <td>${a.orderPlaced.placed ? 'Yes' : 'No'}</td>
-        <td style="text-align:right">${a.orderPlaced.finalValue?.toLocaleString('en-IN') ?? '-'}</td>
-        <td>${a.orderPlaced.currency ?? ''}</td>
-        <td>${a.status}</td>
-      </tr>`).join('')
-    : '<tr><td colspan="14" style="text-align:center;padding:24px">No records match the selected filters.</td></tr>';
-
-  const totals = activities.reduce(
-    (acc, a) => {
-      acc.mou += a.mou.expectedValue ?? 0;
-      acc.estimated += a.orderInProcess.estimatedValue ?? 0;
-      acc.confirmed += a.orderPlaced.finalValue ?? 0;
-      return acc;
-    },
-    { mou: 0, estimated: 0, confirmed: 0 },
+  const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+    <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-fieo-700 dark:text-fieo-200 mb-3">
+        <span className="text-fieo-500">{icon}</span>
+        {title}
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">{children}</div>
+    </div>
   );
 
-  w.document.write(`<!doctype html>
-<html><head><meta charset="utf-8"><title>${meta.title}</title>
-<style>
-  @page { size: A4 landscape; margin: 14mm; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a3d72; margin: 0; }
-  .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #1f4a8a; padding-bottom: 12px; }
-  .logo { width: 64px; height: 64px; border-radius: 12px; background: #1f4a8a; color: #fff; font-family: Georgia, serif; font-size: 30px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-  .title h1 { margin: 0; font-size: 18px; color: #1a3d72; }
-  .title p { margin: 2px 0 0; font-size: 12px; color: #555; }
-  .govt { margin-left: auto; text-align: right; font-size: 11px; color: #555; }
-  .meta { display: flex; justify-content: space-between; margin: 12px 0; font-size: 12px; color: #333; }
-  .filters { background: #f1f5fb; border-left: 4px solid #df7620; padding: 8px 12px; font-size: 12px; margin: 8px 0 16px; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #1f4a8a; color: #fff; padding: 8px 6px; text-align: left; position: sticky; top: 0; }
-  td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  .totals { display: flex; gap: 24px; margin-top: 16px; font-size: 12px; }
-  .totals div { padding: 10px 14px; background: #f1f5fb; border-radius: 8px; }
-  .totals strong { color: #1a3d72; }
-  .footer { position: fixed; bottom: 6mm; left: 14mm; right: 14mm; font-size: 10px; color: #777; display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 4px; }
-  .accent { height: 4px; background: #df7620; border-radius: 2px; margin-top: 2px; }
-</style></head>
-<body>
-  <div class="header">
-    <div class="logo">F</div>
-    <div class="title">
-      <h1>Federation of Indian Export Organisations</h1>
-      <p>Ministry of Commerce &amp; Industry, Government of India — RBSM Outcome Tracking Portal</p>
-      <div class="accent"></div>
+  const Row = ({ label, value, icon }: { label: string; value?: React.ReactNode; icon?: React.ReactNode }) => (
+    <div className="flex items-start gap-2 py-1">
+      {icon && <span className="text-gray-400 mt-0.5 shrink-0">{icon}</span>}
+      <div className="min-w-0">
+        <p className="text-[11px] text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="text-gray-700 dark:text-gray-200 break-words">{value || <span className="text-gray-300 dark:text-gray-600">—</span>}</p>
+      </div>
     </div>
-    <div class="govt"><strong>${meta.title}</strong><br/>Generated: ${date}</div>
-  </div>
-  <div class="meta">
-    <span>Prepared by: <strong>${meta.preparedBy}</strong></span>
-    <span>Total records: <strong>${activities.length}</strong></span>
-  </div>
-  ${meta.filters.length ? `<div class="filters"><strong>Filters:</strong> ${meta.filters.join(' · ')}</div>` : ''}
-  <table>
-    <thead><tr>
-      <th>#</th><th>Activity ID</th><th>Office</th><th>Event Date</th><th>Exporter</th><th>Buyer</th>
-      <th>Country</th><th>Product</th><th>MoU</th><th>In Process</th><th>Placed</th><th>Final Value</th><th>Curr.</th><th>Status</th>
-    </tr></thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <div class="totals">
-    <div>MoU Expected: <strong>${totals.mou.toLocaleString('en-IN')}</strong></div>
-    <div>Estimated Orders: <strong>${totals.estimated.toLocaleString('en-IN')}</strong></div>
-    <div>Confirmed Orders: <strong>${totals.confirmed.toLocaleString('en-IN')}</strong></div>
-  </div>
-  <div class="footer"><span>FIEO RBSM Management System — Confidential</span><span>Page <span id="p"></span></span></div>
-  <script>
-    // Best-effort page numbering via onafterprint is unreliable; CSS @page handles it for most browsers.
-    window.onload = () => setTimeout(() => window.print(), 300);
-  </script>
-</body></html>`);
-  w.document.close();
+  );
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Activity ${a.id}`} subtitle={`${officeName(a.event.regionalOffice)} · ${a.event.eventDate}`} size="lg">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className={`badge ${a.status === 'Completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-200' : a.status === 'In Process' ? 'bg-fieo-100 text-fieo-700 dark:bg-fieo-900/50 dark:text-fieo-200' : 'bg-saffron-100 text-saffron-700 dark:bg-saffron-900/50 dark:text-saffron-200'}`}>
+            {a.status}
+          </span>
+          <span className="text-xs text-gray-400">Created by {a.createdByName} · Updated {new Date(a.updatedAt).toLocaleDateString()}</span>
+        </div>
+
+        <Section title="Event Details" icon={<CalendarDays size={16} />}>
+          <Row label="BSM Name" value={a.event.bsmName} />
+          <Row label="Regional Office" value={officeName(a.event.regionalOffice)} icon={<MapPin size={14} />} />
+          <Row label="Event Date" value={a.event.eventDate} icon={<CalendarDays size={14} />} />
+          <Row label="Event Type" value={a.event.eventType} icon={<Tag size={14} />} />
+          <Row label="Venue" value={a.event.venue} />
+          <Row label="City / State" value={`${a.event.city}, ${a.event.state}`} />
+          <Row label="Country" value={a.event.country} icon={<Globe2 size={14} />} />
+          <Row label="Exporters / Buyers" value={`${a.event.exporterCount} / ${a.event.buyerCount}`} icon={<Users size={14} />} />
+        </Section>
+
+        {isReverseBSM && (
+          <Section title="Exporter" icon={<Building2 size={16} />}>
+            <Row label="Exporter Name" value={a.exporter.exporterName} />
+            <Row label="Company" value={a.exporter.companyName} />
+            <Row label="IEC Number" value={a.exporter.iecNumber} icon={<Hash size={14} />} />
+            <Row label="Product Category" value={a.exporter.productCategory} icon={<Tag size={14} />} />
+            <Row label="Email" value={a.exporter.email} icon={<Mail size={14} />} />
+            <Row label="Phone" value={a.exporter.phone} icon={<Phone size={14} />} />
+            <Row label="Website" value={a.exporter.website} />
+            <Row label="Address" value={a.exporter.address} />
+          </Section>
+        )}
+
+        {!isReverseBSM && (
+          <Section title="Buyer" icon={<Users size={16} />}>
+            <Row label="Buyer Name" value={a.buyer.buyerName} />
+            <Row label="Company Name" value={a.buyer.company} />
+            <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
+            <Row label="Phone / WhatsApp" value={a.buyer.phone} icon={<Phone size={14} />} />
+            <Row label="Passport Number" value={a.buyer.passportNumber} icon={<Hash size={14} />} />
+            <Row label="Interested Products" value={a.buyer.interestedProducts} />
+          </Section>
+        )}
+
+        {isReverseBSM && (
+        <Section title="Outcome Tracking" icon={<Handshake size={16} />}>
+          <Row label="MoU Signed" value={a.mou.signed ? 'Yes' : 'No'} icon={<Handshake size={14} />} />
+          {a.mou.signed && (
+            <>
+              <Row label="Expected Value" value={a.mou.expectedValue ? formatFullCurrency(a.mou.expectedValue, a.mou.currency) : '—'} />
+              <Row label="Expected Timeline" value={a.mou.expectedTimeline} />
+            </>
+          )}
+          <Row label="Order In Process" value={a.orderInProcess.active ? 'Yes' : 'No'} icon={<Package size={14} />} />
+          {a.orderInProcess.active && (
+            <>
+              <Row label="Estimated Value" value={a.orderInProcess.estimatedValue ? formatFullCurrency(a.orderInProcess.estimatedValue, a.orderInProcess.currency) : '—'} />
+              <Row label="Expected Closure" value={a.orderInProcess.expectedClosureDate} />
+              <Row label="Probability" value={a.orderInProcess.probability ? `${a.orderInProcess.probability}%` : '—'} />
+              <Row label="Remarks" value={a.orderInProcess.remarks} />
+            </>
+          )}
+          <Row label="Order Placed" value={a.orderPlaced.placed ? 'Yes' : 'No'} icon={<ShoppingCart size={14} />} />
+          {a.orderPlaced.placed && (
+            <>
+              <Row label="Final Value" value={a.orderPlaced.finalValue ? formatFullCurrency(a.orderPlaced.finalValue, a.orderPlaced.currency) : '—'} />
+              <Row label="PO Number" value={a.orderPlaced.purchaseOrderNumber} />
+              <Row label="Order Date" value={a.orderPlaced.orderDate} />
+            </>
+          )}
+        </Section>
+        )}
+
+        {isReverseBSM && (
+        <Section title="Remarks & Follow-up" icon={<MessageSquare size={16} />}>
+          <Row label="General Remarks" value={a.remarks.general} />
+          <Row label="Challenges Faced" value={a.remarks.challenges} />
+          <Row label="Success Story" value={a.remarks.successStory} />
+          <Row label="Follow-up Required" value={a.remarks.followUpRequired ? 'Yes' : 'No'} icon={<Clock size={14} />} />
+          <Row label="Next Follow-up Date" value={a.remarks.nextFollowUpDate} icon={<CalendarDays size={14} />} />
+        </Section>
+        )}
+
+        {a.documents.length > 0 && (
+          <Section title="Documents" icon={<FileText size={16} />}>
+            <div className="sm:col-span-2">
+              <ul className="space-y-2">
+                {a.documents.map((d) => (
+                  <li key={d.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-800">
+                    <span className="w-8 h-8 rounded-lg bg-fieo-100 dark:bg-fieo-900/50 text-fieo-600 flex items-center justify-center shrink-0">
+                      <FileText size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{d.name}</p>
+                      <p className="text-[11px] text-gray-400">{d.kind} · {(d.size / 1024).toFixed(0)} KB</p>
+                    </div>
+                    <a href={d.dataUrl} download={d.name} className="btn-secondary text-xs py-1.5 px-3">Download</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Section>
+        )}
+      </div>
+    </Modal>
+  );
 }

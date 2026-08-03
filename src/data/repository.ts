@@ -41,6 +41,7 @@ interface ActivityRow {
   buyer_phone: string | null;
   buyer_interested_products: string | null;
   buyer_meeting_count: number;
+  buyer_passport_number: string | null;
   mou_signed: boolean;
   mou_expected_value: number | null;
   mou_currency: string | null;
@@ -142,6 +143,7 @@ async function rowToActivity(row: ActivityRow, docs: DocumentRow[], hydrateDocUr
       phone: row.buyer_phone ?? '',
       interestedProducts: row.buyer_interested_products ?? '',
       meetingCount: row.buyer_meeting_count,
+      passportNumber: row.buyer_passport_number ?? '',
     },
     mou: {
       signed: row.mou_signed,
@@ -213,6 +215,7 @@ function activityToRow(a: Activity): Omit<ActivityRow, 'created_at' | 'updated_a
     buyer_phone: a.buyer.phone || null,
     buyer_interested_products: a.buyer.interestedProducts || null,
     buyer_meeting_count: a.buyer.meetingCount,
+    buyer_passport_number: a.buyer.passportNumber || null,
     mou_signed: a.mou.signed,
     mou_expected_value: a.mou.expectedValue ?? null,
     mou_currency: a.mou.currency ?? null,

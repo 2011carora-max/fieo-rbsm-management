@@ -11,6 +11,7 @@ import { officeName } from '@/types';
 export function ActivityViewModal({ open, onClose, activity }: { open: boolean; onClose: () => void; activity: Activity | null }) {
   if (!activity) return null;
   const a = activity;
+  const isReverseBSM = a.event.eventType === 'Reverse BSM';
 
   const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
     <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
@@ -53,28 +54,31 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Exporters / Buyers" value={`${a.event.exporterCount} / ${a.event.buyerCount}`} icon={<Users size={14} />} />
         </Section>
 
-        <Section title="Exporter" icon={<Building2 size={16} />}>
-          <Row label="Exporter Name" value={a.exporter.exporterName} />
-          <Row label="Company" value={a.exporter.companyName} />
-          <Row label="IEC Number" value={a.exporter.iecNumber} icon={<Hash size={14} />} />
-          <Row label="Product Category" value={a.exporter.productCategory} icon={<Tag size={14} />} />
-          <Row label="Email" value={a.exporter.email} icon={<Mail size={14} />} />
-          <Row label="Phone" value={a.exporter.phone} icon={<Phone size={14} />} />
-          <Row label="Website" value={a.exporter.website} />
-          <Row label="Address" value={a.exporter.address} />
-        </Section>
+        {isReverseBSM && (
+          <Section title="Exporter" icon={<Building2 size={16} />}>
+            <Row label="Exporter Name" value={a.exporter.exporterName} />
+            <Row label="Company" value={a.exporter.companyName} />
+            <Row label="IEC Number" value={a.exporter.iecNumber} icon={<Hash size={14} />} />
+            <Row label="Product Category" value={a.exporter.productCategory} icon={<Tag size={14} />} />
+            <Row label="Email" value={a.exporter.email} icon={<Mail size={14} />} />
+            <Row label="Phone" value={a.exporter.phone} icon={<Phone size={14} />} />
+            <Row label="Website" value={a.exporter.website} />
+            <Row label="Address" value={a.exporter.address} />
+          </Section>
+        )}
 
-        <Section title="Buyer" icon={<Users size={16} />}>
-          <Row label="Buyer Name" value={a.buyer.buyerName} />
-          <Row label="Company" value={a.buyer.company} />
-          <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
-          <Row label="City" value={a.buyer.city} />
-          <Row label="Email" value={a.buyer.email} icon={<Mail size={14} />} />
-          <Row label="Phone" value={a.buyer.phone} icon={<Phone size={14} />} />
-          <Row label="Interested Products" value={a.buyer.interestedProducts} />
-          <Row label="Meeting Count" value={a.buyer.meetingCount} />
-        </Section>
+        {!isReverseBSM && (
+          <Section title="Buyer" icon={<Users size={16} />}>
+            <Row label="Buyer Name" value={a.buyer.buyerName} />
+            <Row label="Company Name" value={a.buyer.company} />
+            <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
+            <Row label="Phone / WhatsApp" value={a.buyer.phone} icon={<Phone size={14} />} />
+            <Row label="Passport Number" value={a.buyer.passportNumber} icon={<Hash size={14} />} />
+            <Row label="Interested Products" value={a.buyer.interestedProducts} />
+          </Section>
+        )}
 
+        {isReverseBSM && (
         <Section title="Outcome Tracking" icon={<Handshake size={16} />}>
           <Row label="MoU Signed" value={a.mou.signed ? 'Yes' : 'No'} icon={<Handshake size={14} />} />
           {a.mou.signed && (
@@ -101,7 +105,9 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
             </>
           )}
         </Section>
+        )}
 
+        {isReverseBSM && (
         <Section title="Remarks & Follow-up" icon={<MessageSquare size={16} />}>
           <Row label="General Remarks" value={a.remarks.general} />
           <Row label="Challenges Faced" value={a.remarks.challenges} />
@@ -109,6 +115,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Follow-up Required" value={a.remarks.followUpRequired ? 'Yes' : 'No'} icon={<Clock size={14} />} />
           <Row label="Next Follow-up Date" value={a.remarks.nextFollowUpDate} icon={<CalendarDays size={14} />} />
         </Section>
+        )}
 
         {a.documents.length > 0 && (
           <Section title="Documents" icon={<FileText size={16} />}>

@@ -88,6 +88,56 @@ const PHONE_RULES: Record<string, PhoneRule> = {
 
 const DEFAULT_PHONE_LENGTHS: [number, number] = [7, 15];
 
+// Country-aware passport format checks. These are simplified/representative
+// patterns for common countries — not verified against every government's
+// current official spec — so unlisted countries fall back to a generic
+// alphanumeric check rather than being rejected outright.
+interface PassportRule {
+  pattern: RegExp;
+  example: string;
+}
+
+const PASSPORT_RULES: Record<string, PassportRule> = {
+  'United States': { pattern: /^[0-9]{9}$/, example: '123456789' },
+  'United Kingdom': { pattern: /^[0-9]{9}$/, example: '123456789' },
+  Germany: { pattern: /^[A-Z0-9]{9}$/, example: 'C01X5G7H9' },
+  France: { pattern: /^[A-Z]{2}[0-9]{7}$/, example: 'AB1234567' },
+  Japan: { pattern: /^[A-Z]{2}[0-9]{7}$/, example: 'TZ1234567' },
+  Singapore: { pattern: /^[A-Z][0-9]{7}[A-Z]$/, example: 'K1234567A' },
+  Australia: { pattern: /^[A-Z][0-9]{7}$/, example: 'N1234567' },
+  Canada: { pattern: /^[A-Z]{2}[0-9]{6}$/, example: 'GA123456' },
+  'South Africa': { pattern: /^[A-Z][0-9]{8}$/, example: 'M12345678' },
+  Nigeria: { pattern: /^[A-Z][0-9]{8}$/, example: 'A12345678' },
+  Brazil: { pattern: /^[A-Z]{2}[0-9]{6}$/, example: 'FZ123456' },
+  Russia: { pattern: /^[0-9]{9}$/, example: '123456789' },
+  'South Korea': { pattern: /^[MS][0-9]{8}$/, example: 'M12345678' },
+  China: { pattern: /^[EG][0-9]{8}$/, example: 'E12345678' },
+  Bangladesh: { pattern: /^[A-Z]{2}[0-9]{7}$/, example: 'BP1234567' },
+  Malaysia: { pattern: /^[AHK][0-9]{8}$/, example: 'A12345678' },
+};
+
+// Countries not in PASSPORT_RULES (e.g. UAE, Saudi Arabia, Netherlands,
+// Italy, Spain, Hong Kong) use this generic fallback instead of a
+// country-specific pattern, since formats vary and aren't reliably documented.
+const DEFAULT_PASSPORT_RULE: PassportRule = { pattern: /^[A-Z0-9]{6,9}$/, example: 'A1234567' };
+
+export function passportFormatHint(country: string): string {
+  const rule = PASSPORT_RULES[country] ?? DEFAULT_PASSPORT_RULE;
+  return `Format e.g. ${rule.example}`;
+}
+
+function validatePassport(passport: string, country: string): string | null {
+  if (!passport) return null;
+  const value = passport.trim().toUpperCase();
+  const rule = PASSPORT_RULES[country] ?? DEFAULT_PASSPORT_RULE;
+  if (!rule.pattern.test(value)) {
+    return country && PASSPORT_RULES[country]
+      ? `Doesn't match the expected ${country} passport format (e.g. ${rule.example}).`
+      : `Passport number should be 6–9 letters/digits (e.g. ${rule.example}).`;
+  }
+  return null;
+}
+
 function validatePhone(phone: string, country: string): string | null {
   if (!phone) return null;
   const digits = phone.replace(/[\s\-()]/g, '');
@@ -114,14 +164,23 @@ function validatePhone(phone: string, country: string): string | null {
 
 export function validateActivity(a: Activity): FieldError[] {
   const errs: FieldError[] = [];
+  // Reverse BSM collects Exporter Details / Outcome Tracking / Remarks & Documents.
+  // Every other event type (BSM, Trade Delegation, Virtual BSM, Exhibition) only collects Buyer Details.
+  const isReverseBSM = a.event.eventType === 'Reverse BSM';
 
   // Mandatory fields
   if (!a.event.regionalOffice) errs.push({ field: 'event.regionalOffice', message: 'Regional office is required.' });
   if (!a.event.eventDate) errs.push({ field: 'event.eventDate', message: 'Event date is required.' });
-  if (!a.exporter.exporterName) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
-  if (!a.buyer.buyerName) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
-  if (!a.buyer.country) errs.push({ field: 'buyer.country', message: 'Country is required.' });
-  if (!a.exporter.productCategory) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
+
+  if (isReverseBSM) {
+    if (!a.exporter.exporterName) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
+    if (!a.exporter.productCategory) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
+  } else {
+    if (!a.buyer.buyerName) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
+    if (!a.buyer.country) errs.push({ field: 'buyer.country', message: 'Country is required.' });
+    if (!a.buyer.phone) errs.push({ field: 'buyer.phone', message: 'Phone / WhatsApp number is required.' });
+    if (!a.buyer.passportNumber) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required.' });
+  }
 
   // IEC: alphanumeric only, 8–12 chars, no special characters or spaces.
   if (a.exporter.iecNumber && !IEC_RE.test(a.exporter.iecNumber)) {
@@ -130,7 +189,6 @@ export function validateActivity(a: Activity): FieldError[] {
 
   // Email — stricter format check.
   if (a.exporter.email && !EMAIL_RE.test(a.exporter.email)) errs.push({ field: 'exporter.email', message: 'Enter a valid exporter email (e.g. name@company.com).' });
-  if (a.buyer.email && !EMAIL_RE.test(a.buyer.email)) errs.push({ field: 'buyer.email', message: 'Enter a valid buyer email (e.g. name@company.com).' });
 
   // Phone — country-aware.
   if (a.exporter.phone) {
@@ -140,6 +198,12 @@ export function validateActivity(a: Activity): FieldError[] {
   if (a.buyer.phone) {
     const e = validatePhone(a.buyer.phone, a.buyer.country);
     if (e) errs.push({ field: 'buyer.phone', message: e });
+  }
+
+  // Passport — country-aware, only when a country is already known.
+  if (a.buyer.passportNumber && a.buyer.country) {
+    const p = validatePassport(a.buyer.passportNumber, a.buyer.country);
+    if (p) errs.push({ field: 'buyer.passportNumber', message: p });
   }
 
   // Numeric currency values
