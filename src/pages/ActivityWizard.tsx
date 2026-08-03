@@ -181,7 +181,9 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
             {editing ? 'Editing existing record' : 'Draft auto-saved'}
           </div>
           <div className="flex gap-2">
-            {step > 1 && <button className="btn-secondary" onClick={back}><ChevronLeft size={16} /> Back</button>}
+            <button className="btn-secondary" onClick={step > 1 ? back : onClose}>
+              <ChevronLeft size={16} /> {step > 1 ? 'Back' : 'Cancel'}
+            </button>
             {step < 5 ? (
               <button className="btn-primary" onClick={next}>Next <ChevronRight size={16} /></button>
             ) : (
