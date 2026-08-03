@@ -45,8 +45,9 @@ function Shell() {
 
   if (!user) return <LoginPage />;
 
-  // Guard admin-only routes for regional users.
-  const effectiveRoute: Route = route === 'users' && user.role !== 'admin' ? 'dashboard' : route;
+  // Regional users can only ever see the Activities page — every other
+  // route (including the default 'dashboard' landing state) is redirected.
+  const effectiveRoute: Route = user.role !== 'admin' ? 'activities' : route;
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">

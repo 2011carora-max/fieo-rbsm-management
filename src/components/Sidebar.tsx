@@ -10,13 +10,13 @@ export type Route = 'dashboard' | 'activities' | 'reports' | 'analytics' | 'docu
 interface NavItem { id: Route; label: string; icon: ReactNode; adminOnly?: boolean; }
 
 const NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, adminOnly: true },
   { id: 'activities', label: 'Activities', icon: <ClipboardList size={18} /> },
-  { id: 'reports', label: 'Reports', icon: <FileBarChart size={18} /> },
-  { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-  { id: 'documents', label: 'Documents', icon: <FolderOpen size={18} /> },
+  { id: 'reports', label: 'Reports', icon: <FileBarChart size={18} />, adminOnly: true },
+  { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, adminOnly: true },
+  { id: 'documents', label: 'Documents', icon: <FolderOpen size={18} />, adminOnly: true },
   { id: 'users', label: 'Users', icon: <Users size={18} />, adminOnly: true },
-  { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={18} />, adminOnly: true },
 ];
 
 const BREADCRUMB_LABELS: Record<Route, string> = {
