@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -62,7 +63,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-gray-950/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div ref={panelRef} tabIndex={-1} className={cn('relative card w-full max-h-[90vh] flex flex-col animate-scale-in outline-none', SIZES[size])}>
@@ -78,6 +79,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         <div className="flex-1 overflow-y-auto p-5">{children}</div>
         {footer && <div className="p-4 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2 bg-gray-50/50 dark:bg-gray-950/50 rounded-b-xl">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
