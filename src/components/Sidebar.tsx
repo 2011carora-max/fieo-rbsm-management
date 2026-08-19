@@ -1,17 +1,18 @@
 import type { ReactNode } from 'react';
-import { Home, LayoutDashboard, ClipboardList, FileBarChart, BarChart3, FolderOpen, Users, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { Home, LayoutDashboard, ClipboardList, FileBarChart, BarChart3, FolderOpen, Users, Settings, LogOut, ChevronRight, Upload } from 'lucide-react';
 import { FieoLogo, FieoWordmark } from '@/components/FieoLogo';
 import { cn } from '@/lib/cn';
 import { useAuth } from '@/context/AuthContext';
 import { officeName } from '@/types';
 
-export type Route = 'dashboard' | 'activities' | 'reports' | 'analytics' | 'documents' | 'users' | 'settings';
+export type Route = 'dashboard' | 'activities' | 'import' | 'reports' | 'analytics' | 'documents' | 'users' | 'settings';
 
 interface NavItem { id: Route; label: string; icon: ReactNode; adminOnly?: boolean; }
 
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, adminOnly: true },
   { id: 'activities', label: 'Activities', icon: <ClipboardList size={18} /> },
+  { id: 'import', label: 'Import Data', icon: <Upload size={18} />, adminOnly: true },
   { id: 'reports', label: 'Reports', icon: <FileBarChart size={18} />, adminOnly: true },
   { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, adminOnly: true },
   { id: 'documents', label: 'Documents', icon: <FolderOpen size={18} />, adminOnly: true },
@@ -22,6 +23,7 @@ const NAV: NavItem[] = [
 const BREADCRUMB_LABELS: Record<Route, string> = {
   dashboard: 'Dashboard',
   activities: 'Activities',
+  import: 'Import Data',
   reports: 'Reports',
   analytics: 'Analytics',
   documents: 'Documents',
