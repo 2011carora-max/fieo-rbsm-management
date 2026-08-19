@@ -1,4 +1,3 @@
-import { useId } from 'react';
 import type { SeriesPoint } from '@/data/analytics';
 import { useChartTooltip, TooltipOverlay } from './Tooltip';
 
@@ -6,7 +5,6 @@ const PALETTE = ['#1f4a8a', '#df7620', '#2e62a8', '#e68f3a', '#4d80c4', '#c75e16
 
 // Donut chart with center label and legend — for share-of distributions.
 export function DonutChart({ data, height = 260, valueFormat }: { data: SeriesPoint[]; height?: number; valueFormat?: (v: number) => string }) {
-  const uid = useId().replace(/:/g, '');
   const { tip, show, hide } = useChartTooltip();
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   const size = Math.min(220, height);
