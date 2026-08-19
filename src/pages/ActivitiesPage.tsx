@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Plus, Search, Eye, Pencil, Trash2, Download, Filter, X, ArrowUpDown, ArrowUp, ArrowDown,
+  Plus, Search, Eye, Pencil, Trash2, Download, X, ArrowUpDown, ArrowUp, ArrowDown,
   ClipboardList, SlidersHorizontal,
 } from 'lucide-react';
 import { useActivities } from '@/hooks/useActivities';
@@ -16,7 +16,6 @@ import { formatFullCurrency } from '@/data/analytics';
 import { getActivity } from '@/data/repository';
 import { COUNTRIES, PRODUCT_CATEGORIES, REGIONAL_OFFICES, officeName } from '@/types';
 import type { Activity } from '@/types';
-import { cn } from '@/lib/cn';
 
 type SortKey = 'id' | 'event.regionalOffice' | 'event.eventDate' | 'exporter.exporterName' | 'buyer.buyerName' | 'buyer.country' | 'exporter.productCategory' | 'orderPlaced.finalValue' | 'status' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
@@ -135,7 +134,7 @@ export function ActivitiesPage() {
   };
 
   const canEdit = (a: Activity) => isAdmin || a.createdByOffice === user?.regionalOffice || a.createdBy === user?.id;
-  const canDelete = (a: Activity) => isAdmin;
+  const canDelete = () => isAdmin;
 
   const exportCsv = () => {
     downloadCsv(filtered, `FIEO-RBSM-Activities-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -277,7 +276,7 @@ export function ActivitiesPage() {
                           title="View"
                         ><Eye size={15} /></button>
                         {canEdit(a) && <button className="btn-ghost p-1.5 rounded-md" onClick={() => openEdit(a)} aria-label={`Edit ${a.id}`} title="Edit"><Pencil size={15} /></button>}
-                        {canDelete(a) && <button className="btn-ghost p-1.5 rounded-md text-red-500" onClick={() => setDeleting(a)} aria-label={`Delete ${a.id}`} title="Delete"><Trash2 size={15} /></button>}
+                        {canDelete() && <button className="btn-ghost p-1.5 rounded-md text-red-500" onClick={() => setDeleting(a)} aria-label={`Delete ${a.id}`} title="Delete"><Trash2 size={15} /></button>}
                       </div>
                     </td>
                   </tr>

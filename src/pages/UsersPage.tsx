@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Users as UsersIcon, Plus, Pencil, Trash2, Shield, MapPin, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Users as UsersIcon, Plus, Pencil, Trash2, Shield, MapPin, Search } from 'lucide-react';
 import { listUsers, saveUser, createUser, deleteUser } from '@/data/repository';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -18,15 +18,15 @@ export function UsersPage() {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<User | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setUsers(await listUsers());
     } catch (err) {
       console.error('UsersPage: failed to load users', err);
       notify('Failed to load users.', 'error');
     }
-  };
-  useEffect(() => { void load(); }, []);
+  }, [notify]);
+  useEffect(() => { void load(); }, [load]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return users;

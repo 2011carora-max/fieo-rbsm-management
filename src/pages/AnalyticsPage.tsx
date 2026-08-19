@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, Users, Globe2, Package, Handshake, ShoppingCart, BarChart3, Calendar } from 'lucide-react';
+import { TrendingUp, Globe2, Package, Handshake, ShoppingCart, BarChart3 } from 'lucide-react';
 import { useActivities } from '@/hooks/useActivities';
 import { ChartCard } from '@/components/ChartCard';
 import { BarChart } from '@/components/charts/BarChart';

@@ -7,7 +7,6 @@ import { downloadCsv, printReport } from '@/data/export';
 import { COUNTRIES, PRODUCT_CATEGORIES, REGIONAL_OFFICES, officeName } from '@/types';
 import { EmptyState } from '@/components/EmptyState';
 import { formatFullCurrency } from '@/data/analytics';
-import type { Activity } from '@/types';
 
 export function ReportsPage() {
   const { activities } = useActivities();

@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { COUNTRIES, EVENT_TYPES, REGIONAL_OFFICES } from '@/types';
 import type { EventType } from '@/types';
 import {
-  parseWorkbookFile, extractRows, autoSuggestMapping, buildImportedRows, TARGET_FIELDS,
+  parseImportFile, extractRows, autoSuggestMapping, buildImportedRows, TARGET_FIELDS,
   type ParsedWorkbook, type SheetRows, type ColumnMapping, type EventBatchDefaults, type ImportedRow, type TargetKey,
 } from '@/data/importParser';
 import { cn } from '@/lib/cn';
@@ -64,7 +64,7 @@ export function ImportPage() {
   const onFile = async (file: File) => {
     setParsing(true);
     try {
-      const wb = await parseWorkbookFile(file);
+      const wb = await parseImportFile(file);
       if (wb.sheets.length === 0) {
         notify('That file has no readable sheets.', 'error');
         return;
@@ -75,8 +75,8 @@ export function ImportPage() {
       setHeaderRow(wb.sheets[0].suggestedHeaderRow);
       setStep(2);
     } catch (err) {
-      console.error('ImportPage: failed to parse workbook', err);
-      notify('Could not read that file. Make sure it is a valid .xlsx or .csv file.', 'error');
+      console.error('ImportPage: failed to parse file', err);
+      notify('Could not read that file. Make sure it is a valid .xlsx, .csv, .docx, or .pdf file.', 'error');
     } finally {
       setParsing(false);
     }
@@ -157,7 +157,7 @@ export function ImportPage() {
       <div>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Import Data</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Bring in Buyer-Seller Meet records from an Excel report — map its columns to the app's fields, review, then import.
+          Bring in Buyer-Seller Meet records from an Excel, Word, or PDF report — map its columns to the app's fields, review, then import.
         </p>
       </div>
 
@@ -186,14 +186,14 @@ export function ImportPage() {
         <div className="card p-8">
           <EmptyState
             icon={<FileSpreadsheet size={28} />}
-            title="Upload an Excel file"
-            message="Accepts .xlsx, .xls, or .csv — e.g. a regional office's RBSM status report."
+            title="Upload a report"
+            message="Accepts Excel (.xlsx, .xls, .csv), Word (.docx) or PDF (.pdf) — e.g. a regional office's RBSM status report. Tables are read directly; free-form Word/PDF text is scanned for labelled records. Any field missing from the file is kept as N/A (or 0 for amounts) instead of being dropped."
             action={
               <div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.xls,.csv,.docx,.doc,.pdf"
                   className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); }}
                 />
