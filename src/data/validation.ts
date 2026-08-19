@@ -5,6 +5,26 @@ export interface FieldError {
   message: string;
 }
 
+/**
+ * The importer fills fields the source file had no data for with the literal
+ * "N/A" (see importParser.ts's withNA) rather than leaving them blank or
+ * dropping the row. Two different notions of "has a value" follow from that:
+ *
+ * - isPresent: something was recorded at all, including "N/A" — used for
+ *   required-field checks, so an imported row with a genuinely missing
+ *   column still passes (it's flagged N/A for a human to fill in later,
+ *   not silently discarded).
+ * - isFilled: real, non-placeholder data — used before format checks
+ *   (email/phone/IEC/passport patterns), so "N/A" is never validated as if
+ *   it were a malformed value the user typed in.
+ */
+function isPresent(value: string | undefined | null): boolean {
+  return !!value && value.trim() !== '';
+}
+function isFilled(value: string | undefined | null): boolean {
+  return isPresent(value) && value!.trim().toUpperCase() !== 'N/A';
+}
+
 // Stricter email: requires name@domain.tld with a 2+ char TLD, no consecutive dots.
 const EMAIL_RE = /^(?=.{3,254}$)[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
@@ -127,7 +147,7 @@ export function passportFormatHint(country: string): string {
 }
 
 function validatePassport(passport: string, country: string): string | null {
-  if (!passport) return null;
+  if (!isFilled(passport)) return null;
   const value = passport.trim().toUpperCase();
   const rule = PASSPORT_RULES[country] ?? DEFAULT_PASSPORT_RULE;
   if (!rule.pattern.test(value)) {
@@ -139,7 +159,7 @@ function validatePassport(passport: string, country: string): string | null {
 }
 
 function validatePhone(phone: string, country: string): string | null {
-  if (!phone) return null;
+  if (!isFilled(phone)) return null;
   const digits = phone.replace(/[\s\-()]/g, '');
   if (!/^\+?\d+$/.test(digits.replace(/^\+/, ''))) {
     return 'Phone may contain only digits, spaces, dashes, parentheses and a leading +.';
@@ -173,22 +193,22 @@ export function validateActivity(a: Activity): FieldError[] {
   if (!a.event.eventDate) errs.push({ field: 'event.eventDate', message: 'Event date is required.' });
 
   if (isReverseBSM) {
-    if (!a.exporter.exporterName) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
-    if (!a.exporter.productCategory) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
+    if (!isPresent(a.exporter.exporterName)) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
+    if (!isPresent(a.exporter.productCategory)) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
   } else {
-    if (!a.buyer.buyerName) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
-    if (!a.buyer.country) errs.push({ field: 'buyer.country', message: 'Country is required.' });
-    if (!a.buyer.phone) errs.push({ field: 'buyer.phone', message: 'Phone / WhatsApp number is required.' });
-    if (!a.buyer.passportNumber) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required.' });
+    if (!isPresent(a.buyer.buyerName)) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
+    if (!isPresent(a.buyer.country)) errs.push({ field: 'buyer.country', message: 'Country is required.' });
+    if (!isPresent(a.buyer.phone)) errs.push({ field: 'buyer.phone', message: 'Phone / WhatsApp number is required.' });
+    if (!isPresent(a.buyer.passportNumber)) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required.' });
   }
 
   // IEC: alphanumeric only, 8–12 chars, no special characters or spaces.
-  if (a.exporter.iecNumber && !IEC_RE.test(a.exporter.iecNumber)) {
+  if (isFilled(a.exporter.iecNumber) && !IEC_RE.test(a.exporter.iecNumber)) {
     errs.push({ field: 'exporter.iecNumber', message: 'IEC must be 8–12 alphanumeric characters (letters and digits only, no spaces or special characters).' });
   }
 
   // Email — stricter format check.
-  if (a.exporter.email && !EMAIL_RE.test(a.exporter.email)) errs.push({ field: 'exporter.email', message: 'Enter a valid exporter email (e.g. name@company.com).' });
+  if (isFilled(a.exporter.email) && !EMAIL_RE.test(a.exporter.email)) errs.push({ field: 'exporter.email', message: 'Enter a valid exporter email (e.g. name@company.com).' });
 
   // Phone — country-aware.
   if (a.exporter.phone) {

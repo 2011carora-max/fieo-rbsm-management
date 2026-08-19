@@ -32,6 +32,31 @@ export async function parseWorkbookFile(file: File): Promise<ParsedWorkbook> {
 }
 
 /**
+ * Reads Excel (.xlsx/.xls), CSV, Word (.docx) or PDF (.pdf) and returns the
+ * same ParsedWorkbook grid shape regardless of source format, so the rest of
+ * the import wizard (sheet/header pick, column mapping, review) never needs
+ * to know which kind of file it started from.
+ *
+ * Word and PDF extraction is best-effort: a document with real tables (Word)
+ * or a clearly columnar layout (PDF) is read as a grid directly; otherwise
+ * we fall back to detecting repeated "Label: value" records, and as a last
+ * resort dump the raw text as a single column so nothing is silently
+ * dropped — it just may need manual column mapping in the next step.
+ */
+export async function parseImportFile(file: File): Promise<ParsedWorkbook> {
+  const ext = file.name.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'docx' || ext === 'doc') {
+    const { parseDocxToSheets } = await import('@/data/documentExtract');
+    return { sheets: await parseDocxToSheets(file) };
+  }
+  if (ext === 'pdf') {
+    const { parsePdfToSheets } = await import('@/data/documentExtract');
+    return { sheets: await parsePdfToSheets(file) };
+  }
+  return parseWorkbookFile(file);
+}
+
+/**
  * Scans the first 10 rows for the one that looks most like a header row —
  * most non-empty cells, without being a single merged title (e.g. sheets
  * like "Memorandum Of Understanding" that have a title row before the
@@ -255,11 +280,19 @@ export interface ImportedRow {
   include: boolean;
 }
 
+/** Placeholder used for text fields the source file had no data for — the row is still imported rather than dropped or left blank. */
+export const NA = 'N/A';
+
 function parseNumeric(value: string): number | undefined {
   const match = value.replace(/,/g, '').match(/-?\d+(\.\d+)?/);
   if (!match) return undefined;
   const n = parseFloat(match[0]);
   return isNaN(n) ? undefined : n;
+}
+
+/** Text field with no value found in the source file → 'N/A' instead of leaving it blank/omitting the row. */
+function withNA(value: string): string {
+  return value.trim() !== '' ? value : NA;
 }
 
 function parseBoolish(value: string): boolean {
@@ -305,15 +338,18 @@ export function buildImportedRows(
     const buyerCountry = collect(row, headers, 'buyer.country', mapping, false) || buyerParsed?.country || '';
     const buyerPhone = collect(row, headers, 'buyer.phone', mapping, false) || buyerParsed?.phone || '';
 
+    // Numeric fields the file has no value for become 0 rather than being
+    // left undefined — the record is still imported instead of stalling on
+    // a "missing value" validation error.
     const mouExpectedValueRaw = collect(row, headers, 'mou.expectedValue', mapping, false);
-    const mouExpectedValue = parseNumeric(mouExpectedValueRaw);
+    const mouExpectedValue = parseNumeric(mouExpectedValueRaw) ?? 0;
     const mouSignedRaw = collect(row, headers, 'mou.signed', mapping, false);
-    const mouSigned = mouSignedRaw ? parseBoolish(mouSignedRaw) : mouExpectedValue !== undefined;
+    const mouSigned = mouSignedRaw ? parseBoolish(mouSignedRaw) : mouExpectedValue > 0;
 
     const orderValueRaw = collect(row, headers, 'orderPlaced.finalValue', mapping, false);
-    const orderFinalValue = parseNumeric(orderValueRaw);
+    const orderFinalValue = parseNumeric(orderValueRaw) ?? 0;
     const orderPlacedRaw = collect(row, headers, 'orderPlaced.placed', mapping, false);
-    const orderPlaced = orderPlacedRaw ? parseBoolish(orderPlacedRaw) : orderFinalValue !== undefined;
+    const orderPlaced = orderPlacedRaw ? parseBoolish(orderPlacedRaw) : orderFinalValue > 0;
 
     const status: Activity['status'] = orderPlaced ? 'Completed' : mouSigned ? 'In Process' : 'Draft';
 
@@ -332,25 +368,25 @@ export function buildImportedRows(
         buyerCount: 0,
       },
       exporter: {
-        exporterName,
-        iecNumber,
-        companyName,
-        productCategory: collect(row, headers, 'exporter.productCategory', mapping, false),
-        email: collect(row, headers, 'exporter.email', mapping, false),
-        phone: exporterPhone,
-        website: collect(row, headers, 'exporter.website', mapping, false),
-        address: collect(row, headers, 'exporter.address', mapping, true),
+        exporterName: withNA(exporterName),
+        iecNumber: withNA(iecNumber),
+        companyName: withNA(companyName),
+        productCategory: withNA(collect(row, headers, 'exporter.productCategory', mapping, false)),
+        email: withNA(collect(row, headers, 'exporter.email', mapping, false)),
+        phone: withNA(exporterPhone),
+        website: withNA(collect(row, headers, 'exporter.website', mapping, false)),
+        address: withNA(collect(row, headers, 'exporter.address', mapping, true)),
       },
       buyer: {
-        buyerName,
-        company: buyerCompany,
-        country: buyerCountry,
+        buyerName: withNA(buyerName),
+        company: withNA(buyerCompany),
+        country: withNA(buyerCountry),
         city: '',
         email: '',
-        phone: buyerPhone,
-        interestedProducts: collect(row, headers, 'buyer.interestedProducts', mapping, true),
+        phone: withNA(buyerPhone),
+        interestedProducts: withNA(collect(row, headers, 'buyer.interestedProducts', mapping, true)),
         meetingCount: 1,
-        passportNumber: collect(row, headers, 'buyer.passportNumber', mapping, false),
+        passportNumber: withNA(collect(row, headers, 'buyer.passportNumber', mapping, false)),
       },
       mou: {
         signed: mouSigned,
@@ -363,9 +399,9 @@ export function buildImportedRows(
         purchaseOrderNumber: collect(row, headers, 'orderPlaced.purchaseOrderNumber', mapping, false) || undefined,
       },
       remarks: {
-        general: collect(row, headers, 'remarks.general', mapping, true),
-        challenges: collect(row, headers, 'remarks.challenges', mapping, true),
-        successStory: collect(row, headers, 'remarks.successStory', mapping, true),
+        general: withNA(collect(row, headers, 'remarks.general', mapping, true)),
+        challenges: withNA(collect(row, headers, 'remarks.challenges', mapping, true)),
+        successStory: withNA(collect(row, headers, 'remarks.successStory', mapping, true)),
         followUpRequired: false,
       },
       documents: [],
