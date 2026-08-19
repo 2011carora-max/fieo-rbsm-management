@@ -8,6 +8,7 @@ import { Sidebar, type Route } from '@/components/Sidebar';
 import { TopNav } from '@/components/TopNav';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ActivitiesPage } from '@/pages/ActivitiesPage';
+import { ImportPage } from '@/pages/ImportPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
@@ -57,6 +58,7 @@ function Shell() {
         <main className="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
           {effectiveRoute === 'dashboard' && <DashboardPage />}
           {effectiveRoute === 'activities' && <ActivitiesPage />}
+          {effectiveRoute === 'import' && <ImportPage />}
           {effectiveRoute === 'reports' && <ReportsPage />}
           {effectiveRoute === 'analytics' && <AnalyticsPage />}
           {effectiveRoute === 'documents' && <DocumentsPage />}
