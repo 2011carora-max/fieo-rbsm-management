@@ -167,10 +167,17 @@ function validatePhone(phone: string, country: string): string | null {
   const bareDigits = digits.replace(/^\+/, '');
   const rule = PHONE_RULES[country];
   if (rule) {
-    // Accept the number if it either starts with the country code or is a local-length number.
-    const withCode = bareDigits.startsWith(rule.code) ? bareDigits.slice(rule.code.length) : bareDigits;
     const [min, max] = rule.lengths;
-    if (withCode.length < min || withCode.length > max) {
+    // A number is accepted if it's a valid length either as-is or with the
+    // country code prefix stripped — checking both (rather than always
+    // stripping whenever the string happens to start with the code) avoids
+    // wrongly truncating a bare local number that coincidentally starts
+    // with the same digits as the country code (e.g. a 10-digit Indian
+    // mobile number starting with "91").
+    const withCode = bareDigits.startsWith(rule.code) ? bareDigits.slice(rule.code.length) : bareDigits;
+    const validAsIs = bareDigits.length >= min && bareDigits.length <= max;
+    const validWithCodeStripped = withCode.length >= min && withCode.length <= max;
+    if (!validAsIs && !validWithCodeStripped) {
       return `${rule.name} phone numbers must be ${min}–${max} digits (excluding the +${rule.code} country code).`;
     }
   } else {
