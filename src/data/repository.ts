@@ -407,6 +407,32 @@ export async function deleteActivity(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Deletes every activity (and its documents/storage files) for the whole
+ * organization — used only by the admin-only "Clear All Data" action in
+ * Settings. Irreversible; the caller is responsible for confirming with the
+ * user before calling this.
+ */
+export async function deleteAllActivities(): Promise<{ deleted: number }> {
+  const { data: docs, error: docsErr } = await supabase.from('documents').select('storage_path');
+  if (docsErr) throw docsErr;
+  if (docs && docs.length) {
+    // Storage removal is batched at 100 paths per call to stay well under
+    // typical request-size limits on large datasets.
+    const paths = docs.map((d) => d.storage_path as string);
+    for (let i = 0; i < paths.length; i += 100) {
+      await supabase.storage.from(DOCUMENTS_BUCKET).remove(paths.slice(i, i + 100));
+    }
+  }
+
+  const { error: docsDeleteErr } = await supabase.from('documents').delete().not('id', 'is', null);
+  if (docsDeleteErr) throw docsDeleteErr;
+
+  const { data: deletedRows, error } = await supabase.from('activities').delete().not('id', 'is', null).select('id');
+  if (error) throw error;
+  return { deleted: deletedRows?.length ?? 0 };
+}
+
 // Generated client-side (not via a DB sequence/lookup) so it's synchronous and
 // collision-safe across concurrent users in different regional offices —
 // a "select max, add one" scheme would race when two offices create an
