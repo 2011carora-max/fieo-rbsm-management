@@ -174,7 +174,7 @@ export const TARGET_FIELDS: TargetFieldMeta[] = [
   { key: 'outcome.amount', label: 'Amount (single column — routed to MoU or Order value automatically)', group: 'Outcome' },
   { key: 'orderPlaced.purchaseOrderNumber', label: 'PO / Order Number', group: 'Outcome' },
 
-  { key: 'remarks.general', label: 'General Remarks / Notes', group: 'Remarks', concatenable: true },
+  { key: 'remarks.general', label: 'Order Details', group: 'Remarks', concatenable: true },
   { key: 'remarks.challenges', label: 'Challenges', group: 'Remarks', concatenable: true },
   { key: 'remarks.successStory', label: 'Success Story / Feedback', group: 'Remarks', concatenable: true },
 ];
@@ -512,6 +512,44 @@ function boolWithNote(raw: string, label: string): { flag: boolean; note: string
   return { flag, note: isShortToken ? '' : `${label}: ${v}` };
 }
 
+/**
+ * Infers the deal outcome from a free-text buyer remark when the file has
+ * no dedicated Order Placed / Order In Process columns to read a clean
+ * signal from — very common in these reports, which often carry only a
+ * narrative "Remarks by buyer" column. Priority (checked in this order):
+ *
+ *   1. An explicit "MoU signed" mention, or a clearly negative outcome
+ *      ("not interested", "no response", "not buying") — left alone under
+ *      MoU Signed only, not reclassified as Order Placed/In Process.
+ *   2. Definitive completed-order language ("order placed", "PO issued")
+ *      — Order Placed.
+ *   3. Ongoing-engagement language (discussion, negotiation, sample
+ *      requests, testing, "will place"/"going to place") — Order In Process.
+ *   4. Nothing recognizable — left as-is (no inferred change).
+ *
+ * Deliberately conservative: a remark with no match changes nothing rather
+ * than guessing, and "will/going to place" (future intent) is distinguished
+ * from "placed" (past tense) so hopeful language doesn't get counted as a
+ * completed order.
+ */
+function classifyOutcomeFromRemark(remark: string): 'placed' | 'inProcess' | 'mouOnly' | 'none' {
+  const t = remark.trim().toLowerCase();
+  if (!t || t === NA.toLowerCase()) return 'none';
+
+  const hasMou = /\bmou\b/.test(t);
+  const hasSign = /\bsign/.test(t);
+  const negativeOutcome = /not interested|no response|not\s+respond|not buying/.test(t);
+  if ((hasMou && hasSign) || negativeOutcome) return 'mouOnly';
+
+  const placedRe = /\bplaced\b(?:\s+\w+){0,3}\s*\border\b|\border\b(?:\s+\w+){0,2}\s*\bplaced\b|\bpo\s*(raised|issued)\b|purchase\s*order[\s\S]{0,20}(placed|raised|issued)/;
+  if (placedRe.test(t)) return 'placed';
+
+  const inProcessRe = /discuss|negoti|cuss?ion|\bsample|testing|\btest\b|\breview\b|going\s*to\s*place|will\s+(?:be\s+)?place|expect(ing)?\s*to\s*place|awaiting|waiting\s*for|in\s*touch|working\s*with|expected\s*by|shortly|shorty/;
+  if (inProcessRe.test(t)) return 'inProcess';
+
+  return 'none';
+}
+
 function collect(row: Record<string, string>, headers: string[], target: TargetKey, mapping: ColumnMapping, concatenable: boolean): string {
   const cols = headers.filter((h) => mapping[h] === target);
   const values = cols.map((h) => ({ h, v: row[h]?.trim() ?? '' })).filter((x) => x.v !== '');
@@ -599,9 +637,24 @@ export function buildImportedRows(
     const mouExpectedValue = mouUsd ?? mouGeneric ?? 0;
     const orderFinalValue = orderUsd ?? orderGeneric ?? 0;
 
+    // When the file has no dedicated Order Placed / Order In Process column
+    // to read from, a remark like "Under Discussion" or "hope to place the
+    // order" should NOT be counted as a placed order just because some
+    // revenue/value figure happens to be present — that figure is often a
+    // projected or potential amount, not proof of a completed sale. The
+    // remark text itself is a much more reliable signal here, so it takes
+    // priority over the plain "value > 0" fallback (but never overrides an
+    // explicit Order Placed/In Process column when the file actually has one).
+    const remarkForClassification = collect(row, headers, 'remarks.general', mapping, true);
+    const remarkOutcome = (!orderPlacedRaw && !orderInProcessRaw) ? classifyOutcomeFromRemark(remarkForClassification) : 'none';
+
     const mouSigned = mouSignedRaw ? mouSignedFromCell : mouExpectedValue > 0;
-    const orderPlaced = orderPlacedRaw ? orderPlacedFromCell : orderFinalValue > 0;
-    const orderInProcessActive = orderInProcessFromCell || !!orderInProcessNote;
+    const orderPlaced = orderPlacedRaw
+      ? orderPlacedFromCell
+      : remarkOutcome === 'placed' ? true
+      : remarkOutcome === 'inProcess' || remarkOutcome === 'mouOnly' ? false
+      : orderFinalValue > 0;
+    const orderInProcessActive = orderInProcessFromCell || !!orderInProcessNote || remarkOutcome === 'inProcess';
 
     // Now that both outcome flags are resolved, route the shared Amount
     // column to whichever outcome it belongs to for this row (order placed
