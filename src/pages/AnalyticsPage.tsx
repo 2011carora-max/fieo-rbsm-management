@@ -109,11 +109,11 @@ export function AnalyticsPage() {
 
       {tab === 'products' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Product Category Distribution" subtitle="Exporter product mix">
-            <HBarChart data={products} color="#df7620" />
+          <ChartCard title="Product Category Distribution" subtitle="Exporter product mix — top 10 by default">
+            <HBarChart data={products} color="#df7620" limit={10} />
           </ChartCard>
-          <ChartCard title="Product Share" subtitle="Donut view">
-            <DonutChart data={products} />
+          <ChartCard title="Product Share" subtitle="Donut view — top 10 by default">
+            <DonutChart data={products} limit={10} />
           </ChartCard>
         </div>
       )}
