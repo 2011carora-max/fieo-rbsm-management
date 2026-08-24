@@ -13,7 +13,7 @@ const HEADERS = [
   'MoU Signed', 'MoU Expected Value', 'MoU Currency', 'MoU Timeline',
   'Order In Process', 'Estimated Value', 'Order Currency', 'Expected Closure', 'Probability',
   'Order Placed', 'Final Value', 'PO Number', 'Order Date',
-  'Status', 'Created By', 'Next Follow-up',
+  'Status', 'Created By', 'Order Details', 'Next Follow-up',
 ];
 
 function activityRow(a: Activity): (string | number)[] {
@@ -25,7 +25,7 @@ function activityRow(a: Activity): (string | number)[] {
     a.mou.signed ? 'Yes' : 'No', a.mou.expectedValue ?? '', a.mou.currency ?? '', a.mou.expectedTimeline ?? '',
     a.orderInProcess.active ? 'Yes' : 'No', a.orderInProcess.estimatedValue ?? '', a.orderInProcess.currency ?? '', a.orderInProcess.expectedClosureDate ?? '', a.orderInProcess.probability ?? '',
     a.orderPlaced.placed ? 'Yes' : 'No', a.orderPlaced.finalValue ?? '', a.orderPlaced.purchaseOrderNumber ?? '', a.orderPlaced.orderDate ?? '',
-    a.status, a.createdByName, a.remarks.nextFollowUpDate ?? '',
+    a.status, a.createdByName, a.remarks.general ?? '', a.remarks.nextFollowUpDate ?? '',
   ];
 }
 
@@ -43,6 +43,20 @@ export function activitiesToCsv(activities: Activity[]): string {
 export function downloadCsv(activities: Activity[], filename: string): void {
   const csv = activitiesToCsv(activities);
   // Prepend BOM so Excel reads UTF-8 correctly.
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/** Generic CSV download for tabular data that isn't a list of Activities (e.g. an import audit/error report). */
+export function downloadRowsCsv(headers: string[], rows: (string | number)[][], filename: string): void {
+  const csv = [headers.join(','), ...rows.map((r) => r.map(csvEscape).join(','))].join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
