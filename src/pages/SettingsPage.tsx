@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Moon, Sun, Building2, Save, Database, Trash2, Info, AlertOctagon } from 'lucide-react';
-import { getSettings, deleteAllActivities } from '@/data/repository';
+import { Settings as SettingsIcon, Moon, Sun, Building2, Save, Database, Trash2, Info, AlertOctagon, Wand2 } from 'lucide-react';
+import { getSettings, deleteAllActivities, reclassifyOrderStatusFromRemarks } from '@/data/repository';
 import { useAuth } from '@/context/AuthContext';
 import { useActivities } from '@/hooks/useActivities';
 import { useTheme } from '@/context/ThemeContext';
@@ -19,6 +19,7 @@ export function SettingsPage() {
   const [clearAllOpen, setClearAllOpen] = useState(false);
   const [clearAllConfirmText, setClearAllConfirmText] = useState('');
   const [clearingAll, setClearingAll] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
 
   useEffect(() => { if (settings) setForm(settings); }, [settings]);
   void getSettings; // ensure module import retained for future direct reads
@@ -42,6 +43,25 @@ export function SettingsPage() {
     localStorage.clear();
     notify('Local cache cleared. Signing out…', 'info');
     setTimeout(() => window.location.reload(), 800);
+  };
+
+  const runReclassify = async () => {
+    setReclassifying(true);
+    try {
+      const { checked, updated } = await reclassifyOrderStatusFromRemarks();
+      await refresh();
+      notify(
+        updated > 0
+          ? `Checked ${checked} activities — corrected Order Placed / In Process on ${updated} of them to match their remarks.`
+          : `Checked ${checked} activities — all already match their remarks, nothing to fix.`,
+        'success',
+      );
+    } catch (err) {
+      console.error('SettingsPage: failed to reclassify order status', err);
+      notify('Failed to fix order status. You may not have permission, or the connection dropped partway through.', 'error');
+    } finally {
+      setReclassifying(false);
+    }
   };
 
   const clearAllData = async () => {
@@ -125,6 +145,18 @@ export function SettingsPage() {
           <p>Activities, users, and documents are stored in Supabase (Postgres + Storage) and shared across all offices and devices. Only your theme preference and sign-in session are cached in this browser.</p>
         </div>
         <button className="btn-danger" onClick={() => setWipeOpen(true)}><Trash2 size={16} /> Clear Local Cache &amp; Sign Out</button>
+
+        {user?.role === 'admin' && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Fix Order Status from Remarks</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Corrects Order Placed / Order In Process on existing activities when their remarks clearly say otherwise (e.g. "Good Supplied" or "Order Placed" but the record still shows No). Safe to run any time — only changes records with a clear, direct contradiction; ambiguous remarks are left untouched.
+            </p>
+            <button className="btn-secondary" onClick={runReclassify} disabled={reclassifying}>
+              <Wand2 size={16} /> {reclassifying ? 'Checking activities…' : 'Fix Order Status from Remarks'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Danger zone — admin only */}
