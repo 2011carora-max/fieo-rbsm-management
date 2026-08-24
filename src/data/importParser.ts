@@ -207,6 +207,7 @@ const EXACT_HEADER_ALIASES: Record<string, TargetKey> = {
   'order in process': 'orderInProcess.active',
   'order placed': 'orderPlaced.placed',
   'order status': 'orderPlaced.placed',
+  'order details': 'remarks.general',
   'how much converstion inusd': 'orderPlaced.finalValueUsd',
   'how much conversion inusd': 'orderPlaced.finalValueUsd',
   'amount': 'outcome.amount',
@@ -295,9 +296,7 @@ function guessTarget(norm: string): TargetKey {
   if (/revenue|amount|value/.test(norm) && /(inr|rs\.?|rupee)/.test(norm)) return 'orderPlaced.finalValueInr';
   if (/amount|value/.test(norm)) return 'outcome.amount';
   if (/po\b|purchase order|order.*number/.test(norm)) return 'orderPlaced.purchaseOrderNumber';
-  if (/feedback|success|outcome/.test(norm)) return 'remarks.successStory';
-  if (/challenge|issue|problem/.test(norm)) return 'remarks.challenges';
-  if (/remark|note|point|status|verified/.test(norm)) return 'remarks.general';
+  if (/remark|note|point|status|verified|feedback|success|outcome|challenge|issue|problem|updated as/.test(norm)) return 'remarks.general';
   return 'ignore';
 }
 
