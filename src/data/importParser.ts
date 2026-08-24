@@ -3,6 +3,7 @@ import { COUNTRIES } from '@/types';
 import type { Activity, EventType } from '@/types';
 import { nextActivityId } from '@/data/repository';
 import { validateActivity, isDuplicateActivity, type FieldError } from '@/data/validation';
+import { classifyOutcomeFromRemark } from '@/data/outcomeClassifier';
 
 // ---------------------------------------------------------------------------
 // Reading the workbook
@@ -510,44 +511,6 @@ function boolWithNote(raw: string, label: string): { flag: boolean; note: string
   const flag = parseBoolish(v);
   const isShortToken = v.length <= 24 && v.split(/\s+/).length <= 3;
   return { flag, note: isShortToken ? '' : `${label}: ${v}` };
-}
-
-/**
- * Infers the deal outcome from a free-text buyer remark when the file has
- * no dedicated Order Placed / Order In Process columns to read a clean
- * signal from — very common in these reports, which often carry only a
- * narrative "Remarks by buyer" column. Priority (checked in this order):
- *
- *   1. An explicit "MoU signed" mention, or a clearly negative outcome
- *      ("not interested", "no response", "not buying") — left alone under
- *      MoU Signed only, not reclassified as Order Placed/In Process.
- *   2. Definitive completed-order language ("order placed", "PO issued")
- *      — Order Placed.
- *   3. Ongoing-engagement language (discussion, negotiation, sample
- *      requests, testing, "will place"/"going to place") — Order In Process.
- *   4. Nothing recognizable — left as-is (no inferred change).
- *
- * Deliberately conservative: a remark with no match changes nothing rather
- * than guessing, and "will/going to place" (future intent) is distinguished
- * from "placed" (past tense) so hopeful language doesn't get counted as a
- * completed order.
- */
-function classifyOutcomeFromRemark(remark: string): 'placed' | 'inProcess' | 'mouOnly' | 'none' {
-  const t = remark.trim().toLowerCase();
-  if (!t || t === NA.toLowerCase()) return 'none';
-
-  const hasMou = /\bmou\b/.test(t);
-  const hasSign = /\bsign/.test(t);
-  const negativeOutcome = /not interested|no response|not\s+respond|not buying/.test(t);
-  if ((hasMou && hasSign) || negativeOutcome) return 'mouOnly';
-
-  const placedRe = /\bplaced\b(?:\s+\w+){0,3}\s*\border\b|\border\b(?:\s+\w+){0,2}\s*\bplaced\b|\bpo\s*(raised|issued)\b|purchase\s*order[\s\S]{0,20}(placed|raised|issued)/;
-  if (placedRe.test(t)) return 'placed';
-
-  const inProcessRe = /discuss|negoti|cuss?ion|\bsample|testing|\btest\b|\breview\b|going\s*to\s*place|will\s+(?:be\s+)?place|expect(ing)?\s*to\s*place|awaiting|waiting\s*for|in\s*touch|working\s*with|expected\s*by|shortly|shorty/;
-  if (inProcessRe.test(t)) return 'inProcess';
-
-  return 'none';
 }
 
 function collect(row: Record<string, string>, headers: string[], target: TargetKey, mapping: ColumnMapping, concatenable: boolean): string {

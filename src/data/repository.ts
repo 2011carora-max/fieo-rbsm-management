@@ -1,5 +1,6 @@
 import { supabase, DOCUMENTS_BUCKET } from '@/lib/supabaseClient';
 import { assertUuidOrNull, assertUuid } from '@/data/validation';
+import { classifyOutcomeFromRemark } from '@/data/outcomeClassifier';
 import type { Activity, AppSettings, StoredDocument, User } from '@/types';
 
 // Repository — the single data-access surface for the app.
@@ -394,6 +395,56 @@ export async function saveActivity(activity: Activity, removedDocumentIds: strin
   const saved = await getActivity(activity.id);
   if (!saved) throw new Error('Failed to reload saved activity');
   return saved;
+}
+
+/**
+ * Fixes already-imported activities whose Order Placed / Order In Process
+ * flags contradict what their remarks text actually says (e.g. a remark
+ * saying "Good Supplied" or "Order Placed" while the record still shows
+ * Order Placed = No). This is the same classifyOutcomeFromRemark heuristic
+ * the importer applies to new rows — this just re-runs it against records
+ * that were already saved (including ones imported before the classifier
+ * existed, or before a since-added keyword like "supplied"/"delivered").
+ *
+ * Only touches records where the classifier gives a clear, confident
+ * signal ('placed' or 'inProcess') AND that contradicts the stored flags;
+ * everything else — including ambiguous or unrecognized remarks — is left
+ * exactly as-is. Admin-only, triggered from Settings.
+ */
+export async function reclassifyOrderStatusFromRemarks(): Promise<{ checked: number; updated: number }> {
+  const { data: rows, error } = await supabase
+    .from('activities')
+    .select('id, remarks_general, order_in_process_active, order_placed');
+  if (error) throw error;
+  if (!rows || rows.length === 0) return { checked: 0, updated: 0 };
+
+  type Row = { id: string; remarks_general: string | null; order_in_process_active: boolean; order_placed: boolean };
+  const updates: { id: string; order_placed: boolean; order_in_process_active: boolean }[] = [];
+
+  for (const row of rows as Row[]) {
+    const remark = row.remarks_general ?? '';
+    if (!remark) continue;
+    const outcome = classifyOutcomeFromRemark(remark);
+    if (outcome === 'placed' && !row.order_placed) {
+      updates.push({ id: row.id, order_placed: true, order_in_process_active: false });
+    } else if (outcome === 'inProcess' && (row.order_placed || !row.order_in_process_active)) {
+      updates.push({ id: row.id, order_placed: false, order_in_process_active: true });
+    }
+  }
+
+  // Applied in small concurrent batches rather than all at once, to stay
+  // gentle on Supabase when there are hundreds of records to correct.
+  const BATCH = 20;
+  for (let i = 0; i < updates.length; i += BATCH) {
+    const batch = updates.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map((u) =>
+      supabase.from('activities').update({ order_placed: u.order_placed, order_in_process_active: u.order_in_process_active }).eq('id', u.id),
+    ));
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw failed.error;
+  }
+
+  return { checked: rows.length, updated: updates.length };
 }
 
 export async function deleteActivity(id: string): Promise<void> {
