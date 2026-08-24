@@ -487,7 +487,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
         {step === 5 && (
           <div className="space-y-5">
             <div className="grid grid-cols-1 gap-4">
-              <Field label="General Remarks">
+              <Field label="Order Details">
                 <textarea className="input min-h-[64px]" value={activity.remarks.general} onChange={(e) => update({ remarks: { ...activity.remarks, general: e.target.value } })} />
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
