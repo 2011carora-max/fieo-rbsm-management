@@ -320,6 +320,18 @@ const INLINE_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const BARE_PHONE_RE = /^\+?\d[\d\s-]{6,}$/;
 const LABELLED_SEGMENT_RE = /^([A-Za-z][A-Za-z0-9 /_.-]{1,30})\s*:\s*(.*)$/;
 const COUNTRY_LOOKUP = new Map(['India', ...COUNTRIES].map((c) => [c.toLowerCase(), c]));
+// Longest-name-first so a substring fallback match picks "South Africa"
+// over the shorter "Africa"-less false positives, etc.
+const COUNTRY_NAMES_BY_LENGTH = [...COUNTRY_LOOKUP.keys()].sort((a, b) => b.length - a.length);
+
+/** Exact match first; falls back to substring containment so longer forms like "Sultanate of Oman" or "Kingdom of Saudi Arabia" still resolve to the plain country name. */
+function matchCountry(segment: string): string | null {
+  const s = segment.toLowerCase();
+  const exact = COUNTRY_LOOKUP.get(s);
+  if (exact) return exact;
+  const found = COUNTRY_NAMES_BY_LENGTH.find((name) => s.includes(name));
+  return found ? COUNTRY_LOOKUP.get(found)! : null;
+}
 
 /**
  * Splits a freeform "contact block" cell into individual fields. These cells
@@ -368,7 +380,7 @@ function splitContactBlock(raw: string): ContactBlock {
     const emailMatch = seg.match(INLINE_EMAIL_RE);
     if (emailMatch) { email = email || emailMatch[0]; continue; }
     if (BARE_PHONE_RE.test(seg)) { phone = phone || seg; continue; }
-    const countryMatch = COUNTRY_LOOKUP.get(seg.toLowerCase());
+    const countryMatch = matchCountry(seg);
     if (countryMatch) { country = country || countryMatch; continue; }
 
     rest.push(seg);
@@ -386,7 +398,7 @@ function splitContactBlock(raw: string): ContactBlock {
         const idx = companyLine.lastIndexOf(',');
         company = companyLine.slice(0, idx).trim();
         const maybeCountry = companyLine.slice(idx + 1).trim();
-        const matched = COUNTRY_LOOKUP.get(maybeCountry.toLowerCase());
+        const matched = matchCountry(maybeCountry);
         country = matched ?? maybeCountry;
       } else {
         company = companyLine;
