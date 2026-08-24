@@ -109,7 +109,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
 
         {isReverseBSM && (
         <Section title="Remarks & Follow-up" icon={<MessageSquare size={16} />}>
-          <Row label="General Remarks" value={a.remarks.general} />
+          <Row label="Order Details" value={a.remarks.general} />
           <Row label="Challenges Faced" value={a.remarks.challenges} />
           <Row label="Success Story" value={a.remarks.successStory} />
           <Row label="Follow-up Required" value={a.remarks.followUpRequired ? 'Yes' : 'No'} icon={<Clock size={14} />} />
