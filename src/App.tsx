@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { LoginPage } from '@/pages/LoginPage';
+import { WorkflowSelection } from '@/pages/WorkflowSelection';
 import { Sidebar, type Route } from '@/components/Sidebar';
 import { TopNav } from '@/components/TopNav';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -15,12 +16,15 @@ import { DocumentsPage } from '@/pages/DocumentsPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
+type WorkflowType = 'feedback' | 'buyer-data' | null;
+
 // App shell — handles auth gating, navigation state, and page routing.
 function Shell() {
   const { user, loading, initError, retryInit } = useAuth();
   const [route, setRoute] = useState<Route>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowType>(null);
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -28,7 +32,7 @@ function Shell() {
       </div>
     );
   }
-
+  
   if (initError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
@@ -43,9 +47,14 @@ function Shell() {
       </div>
     );
   }
-
+  
   if (!user) return <LoginPage />;
-
+  
+  // Show workflow selection screen after login but before any workflow is selected
+  if (!selectedWorkflow) {
+    return <WorkflowSelection onSelect={setSelectedWorkflow} />;
+  }
+  
   // Regional users can only ever see the Activities page — every other
   // route (including the default 'dashboard' landing state) is redirected.
   const effectiveRoute: Route = user.role !== 'admin' ? 'activities' : route;
@@ -57,10 +66,10 @@ function Shell() {
         <TopNav route={effectiveRoute} onMenu={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
           {effectiveRoute === 'dashboard' && <DashboardPage />}
-          {effectiveRoute === 'activities' && <ActivitiesPage />}
+          {effectiveRoute === 'activities' && <ActivitiesPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'import' && <ImportPage />}
-          {effectiveRoute === 'reports' && <ReportsPage />}
-          {effectiveRoute === 'analytics' && <AnalyticsPage />}
+          {effectiveRoute === 'reports' && <ReportsPage workflowType={selectedWorkflow} />}
+          {effectiveRoute === 'analytics' && <AnalyticsPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'documents' && <DocumentsPage />}
           {effectiveRoute === 'users' && <UsersPage />}
           {effectiveRoute === 'settings' && <SettingsPage />}

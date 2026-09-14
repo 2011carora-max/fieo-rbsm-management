@@ -20,12 +20,13 @@ const STEPS = [
   { id: 5, label: 'Remarks & Documents', icon: MessageSquare },
 ];
 
-function emptyActivity(id: string, createdBy: string, createdByName: string, role: 'admin' | 'regional', office: string): Activity {
+function emptyActivity(id: string, createdBy: string, createdByName: string, role: 'admin' | 'regional', office: string, workflowType: 'feedback' | 'buyer-data'): Activity {
   return {
     id,
+    workflowType,
     event: { regionalOffice: role === 'regional' ? office : '', bsmName: '', eventDate: '', venue: '', city: '', state: '', country: 'India', eventType: 'Buyer-Seller Meet', exporterCount: 0, buyerCount: 0 },
     exporter: { exporterName: '', iecNumber: '', companyName: '', productCategory: '', email: '', phone: '', website: '', address: '' },
-    buyer: { buyerName: '', company: '', country: '', city: '', email: '', phone: '', interestedProducts: '', meetingCount: 1, passportNumber: '' },
+    buyer: { buyerName: '', company: '', country: '', city: '', email: '', phone: '', website: '', interestedProducts: '', meetingCount: 1, passportNumber: '' },
     mou: { signed: false },
     orderInProcess: { active: false },
     orderPlaced: { placed: false },
@@ -47,13 +48,14 @@ interface ActivityWizardProps {
   onSave: (a: Activity, removedDocumentIds?: string[]) => Promise<void>;
   editing?: Activity | null;
   all: Activity[];
+  workflowType?: 'feedback' | 'buyer-data';
 }
 
-export function ActivityWizard({ open, onClose, onSave, editing, all }: ActivityWizardProps) {
+export function ActivityWizard({ open, onClose, onSave, editing, all, workflowType = 'feedback' }: ActivityWizardProps) {
   const { user } = useAuth();
   const { notify } = useToast();
   const [step, setStep] = useState(1);
-  const [activity, setActivity] = useState<Activity>(() => editing ?? emptyActivity(nextActivityId(), user?.id ?? '', user?.name ?? '', (user?.role ?? 'admin'), user?.regionalOffice ?? ''));
+  const [activity, setActivity] = useState<Activity>(() => editing ?? emptyActivity(nextActivityId(), user?.id ?? '', user?.name ?? '', (user?.role ?? 'admin'), user?.regionalOffice ?? '', workflowType));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   // Documents present when this edit session opened. Only IDs from this set
@@ -346,7 +348,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
         )}
 
         {step === 3 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Buyer Name" required error={err('buyer.buyerName')}>
               <input className="input" value={activity.buyer.buyerName} onChange={(e) => update({ buyer: { ...activity.buyer, buyerName: e.target.value } })} placeholder="Contact person" />
             </Field>
@@ -363,8 +365,14 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
                 {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
+            <Field label="Email ID">
+              <input type="email" className="input" value={activity.buyer.email} onChange={(e) => update({ buyer: { ...activity.buyer, email: e.target.value } })} placeholder="buyer@example.com" />
+            </Field>
             <Field label="Phone / WhatsApp Number" required error={err('buyer.phone')}>
               <input className="input" value={activity.buyer.phone} onChange={(e) => update({ buyer: { ...activity.buyer, phone: e.target.value } })} placeholder="+1 555XXXXXXX" />
+            </Field>
+            <Field label="Website">
+              <input type="url" className="input" value={activity.buyer.website} onChange={(e) => update({ buyer: { ...activity.buyer, website: e.target.value } })} placeholder="https://www.example.com" />
             </Field>
             <Field
               label="Passport Number"
@@ -380,7 +388,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all }: Activity
                 placeholder="e.g. A1234567"
               />
             </Field>
-            <Field label="Interested Products" className="sm:col-span-2">
+            <Field label="Interested Products" className="sm:col-span-3">
               <select
                 className="input"
                 value={buyerProductMode === 'other' ? 'Other' : activity.buyer.interestedProducts}

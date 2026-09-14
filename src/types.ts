@@ -47,9 +47,9 @@ export interface BuyerInfo {
   country: string;
   /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   city: string;
-  /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   email: string;
   phone: string;
+  website: string;
   interestedProducts: string;
   /** @deprecated no longer collected in the wizard UI; kept so existing DB rows/exports don't break. */
   meetingCount: number;
@@ -105,6 +105,7 @@ export interface ActivityRemarks {
 
 export interface Activity {
   id: string;
+  workflowType: 'feedback' | 'buyer-data';
   event: ActivityEventDetails;
   exporter: ExporterInfo;
   buyer: BuyerInfo;
