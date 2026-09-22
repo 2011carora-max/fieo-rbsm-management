@@ -168,7 +168,7 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           {isBuyerData
             ? 'Import Buyer Data from an Excel, Word, or PDF file. Required per-row fields are Buyer Name, Buyer Country, Phone / WhatsApp Number, and Passport Number.'
-            : 'Bring in Buyer-Seller Meet records from an Excel, Word, or PDF report — map its columns to the app's fields, review, then import.'}
+            : "Bring in Buyer-Seller Meet records from an Excel, Word, or PDF report — map its columns to the app's fields, review, then import."}
         </p>
       </div>
 
