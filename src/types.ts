@@ -5,6 +5,7 @@ export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'JPY';
 
 export type EventType =
   | 'Buyer-Seller Meet'
+  | 'Trade Show'
   | 'Trade Delegation'
   | 'Reverse BSM'
   | 'Virtual BSM'
@@ -236,4 +237,10 @@ export const EVENT_TYPES: EventType[] = [
   'Reverse BSM',
   'Virtual BSM',
   'Exhibition',
+];
+
+/** Event types available only while entering Buyer Data. Feedback keeps EVENT_TYPES unchanged. */
+export const BUYER_DATA_EVENT_TYPES: EventType[] = [
+  'Buyer-Seller Meet',
+  'Trade Show',
 ];

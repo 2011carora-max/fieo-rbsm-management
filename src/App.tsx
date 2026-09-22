@@ -57,17 +57,28 @@ function Shell() {
   
   // Regional users can only ever see the Activities page — every other
   // route (including the default 'dashboard' landing state) is redirected.
-  const effectiveRoute: Route = user.role !== 'admin' ? 'activities' : route;
+  // Regional users may bulk-import Buyer Data, but retain their existing
+  // Feedback restriction to Activities only.
+  const effectiveRoute: Route = user.role !== 'admin'
+    ? (selectedWorkflow === 'buyer-data' && route === 'import' ? 'import' : 'activities')
+    : route;
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar route={effectiveRoute} onNavigate={setRoute} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        route={effectiveRoute}
+        workflowType={selectedWorkflow}
+        onNavigate={setRoute}
+        onChangeWorkflow={() => { setSelectedWorkflow(null); setRoute('dashboard'); }}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav route={effectiveRoute} onMenu={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
-          {effectiveRoute === 'dashboard' && <DashboardPage />}
+          {effectiveRoute === 'dashboard' && <DashboardPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'activities' && <ActivitiesPage workflowType={selectedWorkflow} />}
-          {effectiveRoute === 'import' && <ImportPage />}
+          {effectiveRoute === 'import' && <ImportPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'reports' && <ReportsPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'analytics' && <AnalyticsPage workflowType={selectedWorkflow} />}
           {effectiveRoute === 'documents' && <DocumentsPage />}
