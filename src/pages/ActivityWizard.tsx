@@ -1,6 +1,6 @@
 import type { Activity, Currency, DocumentKind, EventType, StoredDocument } from '@/types';
-import { BUYER_DATA_EVENT_TYPES, COUNTRIES, CURRENCIES, FEEDBACK_EVENT_TYPES, FEEDBACK_EVENT_TYPE_LABELS, PRODUCT_CATEGORIES, REGIONAL_OFFICES } from '@/types';
-import { useState, useEffect, useId, cloneElement, isValidElement, type ReactElement } from 'react';
+import { BUYER_DATA_EVENT_TYPES, COUNTRIES, CURRENCIES, FEEDBACK_EVENT_TYPES, PRODUCT_CATEGORIES, REGIONAL_OFFICES } from '@/types';
+import { useState, useId, cloneElement, isValidElement, type ReactElement } from 'react';
 import {
   CalendarDays, Building2, Users, Handshake, ShoppingCart, MessageSquare,
   Check, ChevronLeft, ChevronRight, Upload, FileText, X, Save, AlertCircle,
@@ -24,7 +24,7 @@ function emptyActivity(id: string, createdBy: string, createdByName: string, rol
   return {
     id,
     workflowType,
-    event: { regionalOffice: role === 'regional' ? office : '', bsmName: '', eventDate: '', venue: '', city: '', state: '', country: 'India', eventType: 'Buyer-Seller Meet', exporterCount: 0, buyerCount: 0 },
+    event: { regionalOffice: role === 'regional' ? office : '', bsmName: '', eventDate: '', venue: '', city: '', state: '', country: 'India', eventType: workflowType === 'feedback' ? 'Reverse BSM' : 'Buyer-Seller Meet', exporterCount: 0, buyerCount: 0 },
     exporter: { exporterName: '', iecNumber: '', companyName: '', productCategory: '', email: '', phone: '', website: '', address: '' },
     buyer: { buyerName: '', company: '', country: '', city: '', email: '', phone: '', website: '', interestedProducts: '', meetingCount: 1, passportNumber: '' },
     mou: { signed: false },
@@ -70,19 +70,14 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
   const [buyerProductMode, setBuyerProductMode] = useState<'category' | 'other'>('category');
 
   const isBuyerData = workflowType === 'buyer-data';
-  // Reverse BSM collects Event Details, Exporter Details, Buyer Details,
-  // Outcome Tracking and Remarks & Documents — i.e. everything.
-  // BSM (Buyer-Seller Meet) only collects Event Details + Buyer Details.
-  const isReverseBSM = activity.event.eventType === 'Reverse BSM';
-  const activeStepIds = isBuyerData ? [1, 3] : isReverseBSM ? [1, 2, 3, 4, 5] : [1, 3];
-
-  // If the event type changes such that the current step is no longer part of
-  // the applicable flow (e.g. user was on Buyer Details and switched to
-  // Reverse BSM), snap back to the first applicable step.
-  useEffect(() => {
-    if (!activeStepIds.includes(step)) setStep(activeStepIds[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReverseBSM]);
+  // Feedback (RBSM/BSM) workflow always collects Event Details, Exporter
+  // Details, Buyer Details, Outcome Tracking and Remarks & Documents —
+  // identically for both Reverse BSM and Trade Show. Buyer Data workflow
+  // collects Event Details + Buyer Details only. Step visibility therefore
+  // depends only on workflowType, never on the selected event type, so
+  // (unlike before) it never changes during a single wizard session and
+  // needs no effect to re-sync the current step.
+  const activeStepIds = isBuyerData ? [1, 3] : [1, 2, 3, 4, 5];
 
   // Reset when opening with a different record.
   const [lastKey, setLastKey] = useState<string>('');
@@ -268,9 +263,9 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
         })}
       </ol>
       <p className="text-xs text-gray-400 -mt-4 mb-4">
-        {isReverseBSM
-          ? 'Reverse BSM: enter Exporter Details, Buyer Details, Outcome Tracking and Remarks & Documents.'
-          : 'Enter Buyer Details for this event.'}
+        {isBuyerData
+          ? 'Enter Buyer Details for this event.'
+          : 'Enter Exporter Details, Buyer Details, Outcome Tracking and Remarks & Documents.'}
       </p>
 
       <div className="animate-fade-in">
@@ -291,7 +286,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
             <Field label="Event Type">
               <select className="input" value={activity.event.eventType} onChange={(e) => update({ event: { ...activity.event, eventType: e.target.value as EventType } })}>
                 {(isBuyerData ? BUYER_DATA_EVENT_TYPES : FEEDBACK_EVENT_TYPES).map((t) => (
-                  <option key={t} value={t}>{isBuyerData ? t : (FEEDBACK_EVENT_TYPE_LABELS[t] ?? t)}</option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </Field>

@@ -11,7 +11,7 @@ import { officeName } from '@/types';
 export function ActivityViewModal({ open, onClose, activity }: { open: boolean; onClose: () => void; activity: Activity | null }) {
   if (!activity) return null;
   const a = activity;
-  const isReverseBSM = a.event.eventType === 'Reverse BSM';
+  const isFeedback = a.workflowType === 'feedback';
 
   const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
     <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
@@ -54,7 +54,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Exporters / Buyers" value={`${a.event.exporterCount} / ${a.event.buyerCount}`} icon={<Users size={14} />} />
         </Section>
 
-        {isReverseBSM && (
+        {isFeedback && (
           <Section title="Exporter" icon={<Building2 size={16} />}>
             <Row label="Exporter Name" value={a.exporter.exporterName} />
             <Row label="Company" value={a.exporter.companyName} />
@@ -76,7 +76,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Interested Products" value={a.buyer.interestedProducts} />
         </Section>
 
-        {isReverseBSM && (
+        {isFeedback && (
         <Section title="Outcome Tracking" icon={<Handshake size={16} />}>
           <Row label="MoU Signed" value={a.mou.signed ? 'Yes' : 'No'} icon={<Handshake size={14} />} />
           {a.mou.signed && (
@@ -105,7 +105,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
         </Section>
         )}
 
-        {isReverseBSM && (
+        {isFeedback && (
         <Section title="Remarks & Follow-up" icon={<MessageSquare size={16} />}>
           <Row label="Order Details" value={a.remarks.general} />
           <Row label="Challenges Faced" value={a.remarks.challenges} />
