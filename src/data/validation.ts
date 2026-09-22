@@ -191,18 +191,19 @@ function validatePhone(phone: string, country: string): string | null {
 
 export function validateActivity(a: Activity): FieldError[] {
   const errs: FieldError[] = [];
-  // Reverse BSM collects Exporter Details AND Buyer Details, plus Outcome
-  // Tracking / Remarks & Documents. BSM (Buyer-Seller Meet) — and the Buyer
-  // Data workflow, which always uses 'Buyer-Seller Meet' or 'Trade Show' —
-  // collect Buyer Details only. Buyer Details are therefore required in
-  // every case; Exporter Details are required additionally for Reverse BSM.
-  const isReverseBSM = a.event.eventType === 'Reverse BSM';
+  // Feedback (RBSM/BSM) workflow requires Exporter Details AND Buyer
+  // Details for every event type (Reverse BSM, Trade Show — both collect
+  // the same fields). Buyer Data workflow requires Buyer Details only.
+  // Keyed off workflowType rather than eventType so this can never
+  // misfire against a Buyer Data record that happens to share an event
+  // type name (e.g. 'Trade Show') with a Feedback record.
+  const isFeedback = a.workflowType === 'feedback';
 
   // Mandatory fields
   if (!a.event.regionalOffice) errs.push({ field: 'event.regionalOffice', message: 'Regional office is required.' });
   if (!a.event.eventDate) errs.push({ field: 'event.eventDate', message: 'Event date is required.' });
 
-  if (isReverseBSM) {
+  if (isFeedback) {
     if (!isPresent(a.exporter.exporterName)) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
     if (!isPresent(a.exporter.productCategory)) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
   }
