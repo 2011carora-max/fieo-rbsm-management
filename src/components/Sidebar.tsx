@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Home, LayoutDashboard, ClipboardList, FileBarChart, BarChart3, FolderOpen, Users, Settings, LogOut, ChevronRight, Upload } from 'lucide-react';
+import { Home, LayoutDashboard, ClipboardList, FileBarChart, BarChart3, FolderOpen, Users, Settings, LogOut, ChevronRight, Upload, Repeat2 } from 'lucide-react';
 import { FieoLogo, FieoWordmark } from '@/components/FieoLogo';
 import { cn } from '@/lib/cn';
 import { useAuth } from '@/context/AuthContext';
@@ -33,14 +33,18 @@ const BREADCRUMB_LABELS: Record<Route, string> = {
 
 interface SidebarProps {
   route: Route;
+  workflowType: 'feedback' | 'buyer-data';
   onNavigate: (r: Route) => void;
+  onChangeWorkflow: () => void;
   open: boolean;
   onClose: () => void;
 }
 
-export function Sidebar({ route, onNavigate, open, onClose }: SidebarProps) {
+export function Sidebar({ route, workflowType, onNavigate, onChangeWorkflow, open, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
-  const items = NAV.filter((n) => !n.adminOnly || user?.role === 'admin');
+  const items = NAV.filter((n) =>
+    !n.adminOnly || user?.role === 'admin' || (n.id === 'import' && workflowType === 'buyer-data'),
+  );
 
   return (
     <>
@@ -79,6 +83,13 @@ export function Sidebar({ route, onNavigate, open, onClose }: SidebarProps) {
 
         {/* User + logout */}
         <div className="p-3 border-t border-gray-100 dark:border-gray-800 shrink-0">
+          <button
+            onClick={() => { onChangeWorkflow(); onClose(); }}
+            className="btn-secondary w-full mb-3 justify-start"
+            title="Return to workflow selection"
+          >
+            <Repeat2 size={16} /> Change Workflow
+          </button>
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50 dark:bg-gray-800">
             <div className="w-9 h-9 rounded-full bg-fieo-600 text-white flex items-center justify-center text-sm font-semibold shrink-0">
               {user?.name.charAt(0)}
