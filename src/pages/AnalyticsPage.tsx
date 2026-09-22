@@ -9,7 +9,7 @@ import { HBarChart } from '@/components/charts/HBarChart';
 import { KpiCard } from '@/components/KpiCard';
 import {
   computeKpis, monthlyActivities, officePerformance, officeValuePerformance,
-  countryDistribution, productDistribution, mouVsOrders, formatCurrency,
+  buyerProductDistribution, computeBuyerDataKpis, countryDistribution, productDistribution, mouVsOrders, formatCurrency,
 } from '@/data/analytics';
 import { cn } from '@/lib/cn';
 
@@ -23,17 +23,49 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'orders', label: 'Orders & MoUs', icon: <ShoppingCart size={16} /> },
 ];
 
-export function AnalyticsPage() {
+export function AnalyticsPage({ workflowType }: { workflowType: 'feedback' | 'buyer-data' }) {
   const { activities } = useActivities();
   const [tab, setTab] = useState<Tab>('overview');
 
-  const kpis = useMemo(() => computeKpis(activities), [activities]);
-  const monthly = useMemo(() => monthlyActivities(activities), [activities]);
-  const office = useMemo(() => officePerformance(activities), [activities]);
-  const officeValue = useMemo(() => officeValuePerformance(activities), [activities]);
-  const countries = useMemo(() => countryDistribution(activities), [activities]);
-  const products = useMemo(() => productDistribution(activities), [activities]);
-  const mouOrders = useMemo(() => mouVsOrders(activities), [activities]);
+  const workflowActivities = useMemo(() => activities.filter((a) => a.workflowType === workflowType), [activities, workflowType]);
+  const kpis = useMemo(() => computeKpis(workflowActivities), [workflowActivities]);
+  const buyerKpis = useMemo(() => computeBuyerDataKpis(workflowActivities), [workflowActivities]);
+  const monthly = useMemo(() => monthlyActivities(workflowActivities), [workflowActivities]);
+  const office = useMemo(() => officePerformance(workflowActivities), [workflowActivities]);
+  const officeValue = useMemo(() => officeValuePerformance(workflowActivities), [workflowActivities]);
+  const countries = useMemo(() => countryDistribution(workflowActivities), [workflowActivities]);
+  const products = useMemo(() => productDistribution(workflowActivities), [workflowActivities]);
+  const buyerProducts = useMemo(() => buyerProductDistribution(workflowActivities), [workflowActivities]);
+  const mouOrders = useMemo(() => mouVsOrders(workflowActivities), [workflowActivities]);
+
+  if (workflowType === 'buyer-data') {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Buyer Data Analytics</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Coverage insights for buyer data only.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KpiCard label="No. of Activities" value={buyerKpis.activities} icon={<BarChart3 size={20} />} accent="blue" />
+          <KpiCard label="No. of Foreign Buyers" value={buyerKpis.foreignBuyers} icon={<Globe2 size={20} />} accent="saffron" />
+          <KpiCard label="No. of Countries Covered" value={buyerKpis.countriesCovered} icon={<Globe2 size={20} />} accent="green" />
+          <KpiCard label="Regional Offices Covered" value={buyerKpis.regionalOfficesCovered} icon={<TrendingUp size={20} />} accent="blue" />
+          <KpiCard label="Unique Products / Sectors" value={buyerKpis.uniqueProducts} icon={<Package size={20} />} accent="saffron" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <ChartCard title="Activities by Regional Office" subtitle="Buyer-data records">
+            <HBarChart data={office} />
+          </ChartCard>
+          <ChartCard title="Countries Covered" subtitle="Buyer countries">
+            <DonutChart data={countries} />
+          </ChartCard>
+          <ChartCard title="Products / Sectors" subtitle="Buyer interest">
+            <HBarChart data={buyerProducts} color="#df7620" limit={10} />
+          </ChartCard>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in">

@@ -38,15 +38,18 @@ function statusBadge(status: Activity['status']) {
   return <span className={`badge ${map[status]}`}>{status}</span>;
 }
 
-export function ActivitiesPage() {
+export function ActivitiesPage({ workflowType }: { workflowType: 'feedback' | 'buyer-data' }) {
   const { activities, upsert, remove } = useActivities();
   const { user } = useAuth();
   const { notify } = useToast();
 
   const isAdmin = user?.role === 'admin';
   const visible = useMemo(
-    () => (isAdmin ? activities : activities.filter((a) => a.createdByOffice === user?.regionalOffice || a.createdBy === user?.id)),
-    [activities, isAdmin, user],
+    () => activities.filter((a) =>
+      a.workflowType === workflowType &&
+      (isAdmin || a.createdByOffice === user?.regionalOffice || a.createdBy === user?.id),
+    ),
+    [activities, workflowType, isAdmin, user],
   );
 
   const [query, setQuery] = useState('');
@@ -148,7 +151,7 @@ export function ActivitiesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Activities</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{workflowType === 'buyer-data' ? 'Buyer Data' : 'Activities'}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">{filtered.length} of {visible.length} records</p>
         </div>
         <div className="flex gap-2">
@@ -290,7 +293,7 @@ export function ActivitiesPage() {
         )}
       </div>
 
-      <ActivityWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onSave={onSave} editing={editing} all={activities} />
+      <ActivityWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onSave={onSave} editing={editing} all={visible} workflowType={workflowType} />
       <ActivityViewModal open={!!viewing} onClose={() => setViewing(null)} activity={viewing} />
       <ConfirmDialog
         open={!!deleting}

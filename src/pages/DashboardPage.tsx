@@ -12,7 +12,7 @@ import { HBarChart } from '@/components/charts/HBarChart';
 import { EmptyState } from '@/components/EmptyState';
 import { useActivities } from '@/hooks/useActivities';
 import {
-  computeKpis, monthlyActivities, officePerformance, countryDistribution,
+  computeBuyerDataKpis, computeKpis, monthlyActivities, officePerformance, countryDistribution,
   productDistribution, mouVsOrders, upcomingFollowups, recentActivities,
   topPerformingOffices, formatCurrency,
 } from '@/data/analytics';
@@ -30,17 +30,19 @@ function statusBadge(status: Activity['status']) {
   return <span className={`badge ${map[status]}`}>{status}</span>;
 }
 
-export function DashboardPage() {
+export function DashboardPage({ workflowType }: { workflowType: 'feedback' | 'buyer-data' }) {
   const { activities, loading, error, refresh } = useActivities();
-  const kpis = useMemo(() => computeKpis(activities), [activities]);
-  const monthly = useMemo(() => monthlyActivities(activities), [activities]);
-  const office = useMemo(() => officePerformance(activities), [activities]);
-  const countries = useMemo(() => countryDistribution(activities), [activities]);
-  const products = useMemo(() => productDistribution(activities), [activities]);
-  const mouOrders = useMemo(() => mouVsOrders(activities), [activities]);
-  const followups = useMemo(() => upcomingFollowups(activities), [activities]);
-  const recent = useMemo(() => recentActivities(activities), [activities]);
-  const topOffices = useMemo(() => topPerformingOffices(activities), [activities]);
+  const workflowActivities = useMemo(() => activities.filter((a) => a.workflowType === workflowType), [activities, workflowType]);
+  const kpis = useMemo(() => computeKpis(workflowActivities), [workflowActivities]);
+  const buyerKpis = useMemo(() => computeBuyerDataKpis(workflowActivities), [workflowActivities]);
+  const monthly = useMemo(() => monthlyActivities(workflowActivities), [workflowActivities]);
+  const office = useMemo(() => officePerformance(workflowActivities), [workflowActivities]);
+  const countries = useMemo(() => countryDistribution(workflowActivities), [workflowActivities]);
+  const products = useMemo(() => productDistribution(workflowActivities), [workflowActivities]);
+  const mouOrders = useMemo(() => mouVsOrders(workflowActivities), [workflowActivities]);
+  const followups = useMemo(() => upcomingFollowups(workflowActivities), [workflowActivities]);
+  const recent = useMemo(() => recentActivities(workflowActivities), [workflowActivities]);
+  const topOffices = useMemo(() => topPerformingOffices(workflowActivities), [workflowActivities]);
 
   if (loading) {
     return (
@@ -57,6 +59,24 @@ export function DashboardPage() {
       <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 p-6 text-center space-y-3">
         <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         <button className="btn-secondary mx-auto" onClick={() => void refresh()}>Retry</button>
+      </div>
+    );
+  }
+
+  if (workflowType === 'buyer-data') {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Buyer Data Dashboard</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Buyer coverage and data-collection overview.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KpiCard label="No. of Activities" value={buyerKpis.activities} icon={<ClipboardList size={20} />} accent="blue" />
+          <KpiCard label="No. of Foreign Buyers" value={buyerKpis.foreignBuyers} icon={<Users size={20} />} accent="saffron" />
+          <KpiCard label="No. of Countries Covered" value={buyerKpis.countriesCovered} icon={<Globe2 size={20} />} accent="green" />
+          <KpiCard label="Regional Offices Covered" value={buyerKpis.regionalOfficesCovered} icon={<MapPin size={20} />} accent="blue" />
+          <KpiCard label="Unique Products / Sectors" value={buyerKpis.uniqueProducts} icon={<Package size={20} />} accent="saffron" />
+        </div>
       </div>
     );
   }

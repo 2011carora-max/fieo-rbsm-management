@@ -7,7 +7,7 @@ import { useActivities } from '@/hooks/useActivities';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
-import { COUNTRIES, EVENT_TYPES, REGIONAL_OFFICES } from '@/types';
+import { BUYER_DATA_EVENT_TYPES, COUNTRIES, EVENT_TYPES, REGIONAL_OFFICES } from '@/types';
 import type { EventType } from '@/types';
 import {
   parseImportFile, extractRows, autoSuggestMapping, buildImportedRows, TARGET_FIELDS,
@@ -26,7 +26,7 @@ const STEP_LABELS: Record<Step, string> = {
   6: 'Done',
 };
 
-export function ImportPage() {
+export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer-data' }) {
   const { activities, upsert, refresh } = useActivities();
   const { user } = useAuth();
   const { notify } = useToast();
@@ -47,6 +47,11 @@ export function ImportPage() {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const isBuyerData = workflowType === 'buyer-data';
+  const availableFields = useMemo(
+    () => isBuyerData ? TARGET_FIELDS.filter((f) => f.group === '—' || f.group === 'Buyer') : TARGET_FIELDS,
+    [isBuyerData],
+  );
 
   const reset = () => {
     setStep(1);
@@ -92,7 +97,11 @@ export function ImportPage() {
       return;
     }
     setSheetRows(rows);
-    setMapping(autoSuggestMapping(rows.headers));
+    const suggested = autoSuggestMapping(rows.headers);
+    setMapping(isBuyerData
+      ? Object.fromEntries(Object.entries(suggested).map(([header, target]) => [header, availableFields.some((f) => f.key === target) ? target : 'ignore'])) as ColumnMapping
+      : suggested,
+    );
     setStep(3);
   };
 
@@ -106,7 +115,7 @@ export function ImportPage() {
     if (!sheetRows || !user) return;
     const rows = buildImportedRows(
       sheetRows, mapping, eventDefaults,
-      user.id, user.name, user.role, activities,
+      user.id, user.name, user.role, activities, workflowType,
     );
     setImportedRows(rows);
     setStep(5);
@@ -144,20 +153,22 @@ export function ImportPage() {
 
   const groupedFields = useMemo(() => {
     const groups = new Map<string, typeof TARGET_FIELDS>();
-    for (const f of TARGET_FIELDS) {
+    for (const f of availableFields) {
       const list = groups.get(f.group) ?? [];
       list.push(f);
       groups.set(f.group, list);
     }
     return Array.from(groups.entries());
-  }, []);
+  }, [availableFields]);
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Import Data</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{isBuyerData ? 'Import Buyer Data' : 'Import Data'}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Bring in Buyer-Seller Meet records from an Excel, Word, or PDF report — map its columns to the app's fields, review, then import.
+          {isBuyerData
+            ? 'Import Buyer Data from an Excel, Word, or PDF file. Required per-row fields are Buyer Name, Buyer Country, Phone / WhatsApp Number, and Passport Number.'
+            : 'Bring in Buyer-Seller Meet records from an Excel, Word, or PDF report — map its columns to the app's fields, review, then import.'}
         </p>
       </div>
 
@@ -290,7 +301,7 @@ export function ImportPage() {
                 value={eventDefaults.eventType}
                 onChange={(e) => setEventDefaults({ ...eventDefaults, eventType: e.target.value as EventType })}
               >
-                {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {(isBuyerData ? BUYER_DATA_EVENT_TYPES : EVENT_TYPES).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>

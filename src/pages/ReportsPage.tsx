@@ -7,8 +7,9 @@ import { downloadCsv, printReport } from '@/data/export';
 import { COUNTRIES, PRODUCT_CATEGORIES, REGIONAL_OFFICES, officeName } from '@/types';
 import { EmptyState } from '@/components/EmptyState';
 import { formatFullCurrency } from '@/data/analytics';
+import { computeBuyerDataKpis } from '@/data/analytics';
 
-export function ReportsPage() {
+export function ReportsPage({ workflowType }: { workflowType: 'feedback' | 'buyer-data' }) {
   const { activities } = useActivities();
   const { user } = useAuth();
   const { notify } = useToast();
@@ -19,8 +20,11 @@ export function ReportsPage() {
   });
 
   const visible = useMemo(
-    () => (isAdmin ? activities : activities.filter((a) => a.createdByOffice === user?.regionalOffice || a.createdBy === user?.id)),
-    [activities, isAdmin, user],
+    () => activities.filter((a) =>
+      a.workflowType === workflowType &&
+      (isAdmin || a.createdByOffice === user?.regionalOffice || a.createdBy === user?.id),
+    ),
+    [activities, workflowType, isAdmin, user],
   );
 
   const filtered = useMemo(() => {
@@ -67,6 +71,25 @@ export function ReportsPage() {
   };
 
   const clearFilters = () => setFilters({ office: '', country: '', exporter: '', buyer: '', product: '', from: '', to: '' });
+
+  if (workflowType === 'buyer-data') {
+    const buyerKpis = computeBuyerDataKpis(filtered);
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Buyer Data Reports</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Buyer data coverage, available to administrators only.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <SummaryCard label="No. of Activities" value={buyerKpis.activities} />
+          <SummaryCard label="No. of Foreign Buyers" value={buyerKpis.foreignBuyers} />
+          <SummaryCard label="No. of Countries Covered" value={buyerKpis.countriesCovered} />
+          <SummaryCard label="Regional Offices Covered" value={buyerKpis.regionalOfficesCovered} />
+          <SummaryCard label="Unique Products / Sectors" value={buyerKpis.uniqueProducts} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in">

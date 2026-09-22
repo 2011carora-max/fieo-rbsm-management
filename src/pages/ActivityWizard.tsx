@@ -1,5 +1,5 @@
 import type { Activity, Currency, DocumentKind, EventType, StoredDocument } from '@/types';
-import { COUNTRIES, CURRENCIES, EVENT_TYPES, PRODUCT_CATEGORIES, REGIONAL_OFFICES } from '@/types';
+import { BUYER_DATA_EVENT_TYPES, COUNTRIES, CURRENCIES, EVENT_TYPES, PRODUCT_CATEGORIES, REGIONAL_OFFICES } from '@/types';
 import { useState, useEffect, useId, cloneElement, isValidElement, type ReactElement } from 'react';
 import {
   CalendarDays, Building2, Users, Handshake, ShoppingCart, MessageSquare,
@@ -69,11 +69,12 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
   // while the user is still typing their custom entry).
   const [buyerProductMode, setBuyerProductMode] = useState<'category' | 'other'>('category');
 
+  const isBuyerData = workflowType === 'buyer-data';
   // Reverse BSM collects Exporter Details / Outcome Tracking / Remarks & Documents.
   // Every other event type (Buyer-Seller Meet, Trade Delegation, Virtual BSM, Exhibition)
   // only collects Buyer Details. Event Details is always required.
   const isReverseBSM = activity.event.eventType === 'Reverse BSM';
-  const activeStepIds = isReverseBSM ? [1, 2, 4, 5] : [1, 3];
+  const activeStepIds = isBuyerData ? [1, 3] : isReverseBSM ? [1, 2, 4, 5] : [1, 3];
 
   // If the event type changes such that the current step is no longer part of
   // the applicable flow (e.g. user was on Buyer Details and switched to
@@ -85,10 +86,10 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
 
   // Reset when opening with a different record.
   const [lastKey, setLastKey] = useState<string>('');
-  const key = `${open}-${editing?.id ?? 'new'}`;
+  const key = `${open}-${editing?.id ?? 'new'}-${workflowType}`;
   if (open && key !== lastKey) {
     setLastKey(key);
-    const base = editing ?? emptyActivity(nextActivityId(), user?.id ?? '', user?.name ?? '', user?.role ?? 'admin', user?.regionalOffice ?? '');
+    const base = editing ?? emptyActivity(nextActivityId(), user?.id ?? '', user?.name ?? '', user?.role ?? 'admin', user?.regionalOffice ?? '', workflowType);
     const draft = editing ? null : loadDraft();
     // Identity/audit fields (id, createdBy, etc.) must always reflect the
     // CURRENT session's user — never a cached draft. A stale draft saved
@@ -102,6 +103,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
           ...base,
           ...draft,
           id: base.id,
+          workflowType: base.workflowType,
           createdBy: base.createdBy,
           createdByName: base.createdByName,
           createdByRole: base.createdByRole,
@@ -209,7 +211,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
       open={open}
       onClose={onClose}
       title={editing ? `Edit Activity — ${editing.id}` : 'New Activity Entry'}
-      subtitle="Multi-step Buyer-Seller Meet outcome form"
+      subtitle={isBuyerData ? 'Buyer data entry form' : 'Multi-step Buyer-Seller Meet outcome form'}
       size="xl"
       footer={
         <div className="flex items-center justify-between w-full">
@@ -288,7 +290,7 @@ export function ActivityWizard({ open, onClose, onSave, editing, all, workflowTy
             </Field>
             <Field label="Event Type">
               <select className="input" value={activity.event.eventType} onChange={(e) => update({ event: { ...activity.event, eventType: e.target.value as EventType } })}>
-                {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {(isBuyerData ? BUYER_DATA_EVENT_TYPES : EVENT_TYPES).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
             <Field label="Venue">
