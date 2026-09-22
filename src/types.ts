@@ -244,3 +244,25 @@ export const BUYER_DATA_EVENT_TYPES: EventType[] = [
   'Buyer-Seller Meet',
   'Trade Show',
 ];
+
+/**
+ * Event types offered in the Feedback (RBSM/BSM) workflow's "New Activity"
+ * dropdown. Limited to these two per requirement — the other legacy values
+ * ('Trade Delegation', 'Virtual BSM', 'Exhibition') remain valid EventType
+ * values so existing historical records that used them still display and
+ * export correctly; they're just no longer offered for new entries.
+ */
+export const FEEDBACK_EVENT_TYPES: EventType[] = [
+  'Reverse BSM',
+  'Buyer-Seller Meet',
+];
+
+/**
+ * Display label override for the Feedback event type dropdown only — the
+ * underlying stored value stays 'Buyer-Seller Meet' (so DB constraints,
+ * exports, and the unrelated Buyer Data workflow are unaffected); only the
+ * text shown to the user in that one dropdown reads "BSM".
+ */
+export const FEEDBACK_EVENT_TYPE_LABELS: Partial<Record<EventType, string>> = {
+  'Buyer-Seller Meet': 'BSM',
+};
