@@ -261,10 +261,25 @@ export function validateActivity(a: Activity): FieldError[] {
   return errs;
 }
 
+/**
+ * Bulk Buyer Data follows the same required Buyer Details as individual
+ * Buyer Data entry. Unlike the general importer, a literal "N/A" does not
+ * satisfy these required fields.
+ */
+export function validateBuyerDataImport(a: Activity): FieldError[] {
+  const errs: FieldError[] = [];
+  if (!isFilled(a.buyer.buyerName)) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required for Buyer Data import.' });
+  if (!isFilled(a.buyer.country)) errs.push({ field: 'buyer.country', message: 'Buyer country is required for Buyer Data import.' });
+  if (!isFilled(a.buyer.phone)) errs.push({ field: 'buyer.phone', message: 'Buyer phone / WhatsApp number is required for Buyer Data import.' });
+  if (!isFilled(a.buyer.passportNumber)) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required for Buyer Data import.' });
+  return errs;
+}
+
 export function isDuplicateActivity(a: Activity, all: Activity[]): boolean {
   return all.some(
     (x) =>
       x.id !== a.id &&
+      x.workflowType === a.workflowType &&
       x.event.regionalOffice === a.event.regionalOffice &&
       x.event.eventDate === a.event.eventDate &&
       x.exporter.exporterName === a.exporter.exporterName &&

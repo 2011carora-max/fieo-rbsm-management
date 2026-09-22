@@ -16,6 +16,7 @@ import type { Activity, AppSettings, StoredDocument, User } from '@/types';
 
 interface ActivityRow {
   id: string;
+  workflow_type: 'feedback' | 'buyer-data';
   event_regional_office: string;
   event_bsm_name: string;
   event_date: string;
@@ -113,6 +114,7 @@ async function rowToActivity(row: ActivityRow, docs: DocumentRow[], hydrateDocUr
   const documents = await Promise.all(docs.map((d) => docRowToStoredDocument(d, hydrateDocUrls)));
   return {
     id: row.id,
+    workflowType: row.workflow_type ?? 'feedback',
     event: {
       regionalOffice: row.event_regional_office,
       bsmName: row.event_bsm_name,
@@ -190,6 +192,7 @@ async function rowToActivity(row: ActivityRow, docs: DocumentRow[], hydrateDocUr
 function activityToRow(a: Activity): Omit<ActivityRow, 'created_at' | 'updated_at'> {
   return {
     id: a.id,
+    workflow_type: a.workflowType,
     event_regional_office: a.event.regionalOffice,
     event_bsm_name: a.event.bsmName,
     event_date: a.event.eventDate,

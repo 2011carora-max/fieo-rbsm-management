@@ -61,6 +61,35 @@ export function computeKpis(activities: Activity[]): Kpis {
 
 export interface SeriesPoint { label: string; value: number; }
 
+export interface BuyerDataKpis {
+  activities: number;
+  foreignBuyers: number;
+  countriesCovered: number;
+  regionalOfficesCovered: number;
+  uniqueProducts: number;
+}
+
+/** Coverage-only metrics used by the Buyer Data workflow. */
+export function computeBuyerDataKpis(activities: Activity[]): BuyerDataKpis {
+  const buyers = new Set<string>();
+  const countries = new Set<string>();
+  const offices = new Set<string>();
+  const products = new Set<string>();
+  for (const a of activities) {
+    if (a.buyer.buyerName.trim()) buyers.add(a.buyer.buyerName.trim().toLowerCase());
+    if (a.buyer.country.trim()) countries.add(a.buyer.country.trim());
+    if (a.event.regionalOffice.trim()) offices.add(a.event.regionalOffice.trim());
+    if (a.buyer.interestedProducts.trim()) products.add(a.buyer.interestedProducts.trim().toLowerCase());
+  }
+  return {
+    activities: activities.length,
+    foreignBuyers: buyers.size,
+    countriesCovered: countries.size,
+    regionalOfficesCovered: offices.size,
+    uniqueProducts: products.size,
+  };
+}
+
 export function monthlyActivities(activities: Activity[]): SeriesPoint[] {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const buckets = new Array(12).fill(0);
@@ -96,6 +125,15 @@ export function countryDistribution(activities: Activity[]): SeriesPoint[] {
 export function productDistribution(activities: Activity[]): SeriesPoint[] {
   const map = new Map<string, number>();
   for (const a of activities) map.set(a.exporter.productCategory, (map.get(a.exporter.productCategory) ?? 0) + 1);
+  return [...map.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+}
+
+export function buyerProductDistribution(activities: Activity[]): SeriesPoint[] {
+  const map = new Map<string, number>();
+  for (const a of activities) {
+    const product = a.buyer.interestedProducts.trim();
+    if (product) map.set(product, (map.get(product) ?? 0) + 1);
+  }
   return [...map.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 }
 

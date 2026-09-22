@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { COUNTRIES } from '@/types';
 import type { Activity, EventType } from '@/types';
 import { nextActivityId } from '@/data/repository';
-import { validateActivity, isDuplicateActivity, type FieldError } from '@/data/validation';
+import { validateActivity, validateBuyerDataImport, isDuplicateActivity, type FieldError } from '@/data/validation';
 import { classifyOutcomeFromRemark } from '@/data/outcomeClassifier';
 
 // ---------------------------------------------------------------------------
@@ -529,6 +529,7 @@ export function buildImportedRows(
   createdByName: string,
   createdByRole: 'admin' | 'regional',
   existingActivities: Activity[],
+  workflowType: 'feedback' | 'buyer-data' = 'feedback',
 ): ImportedRow[] {
   const { headers, rows } = sheetRows;
   const nowIso = new Date().toISOString();
@@ -650,6 +651,7 @@ export function buildImportedRows(
 
     const activity: Activity = {
       id: nextActivityId(),
+      workflowType,
       event: {
         regionalOffice: eventDefaults.regionalOffice,
         bsmName: eventDefaults.bsmName,
@@ -711,7 +713,10 @@ export function buildImportedRows(
       updatedAt: nowIso,
     };
 
-    const errors = validateActivity(activity);
+    const errors = [
+      ...validateActivity(activity),
+      ...(workflowType === 'buyer-data' ? validateBuyerDataImport(activity) : []),
+    ];
     const duplicate = isDuplicateActivity(activity, [...existingActivities, ...importedSoFar]);
     if (errors.length === 0) importedSoFar.push(activity);
 
