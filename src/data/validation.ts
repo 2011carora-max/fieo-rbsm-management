@@ -191,8 +191,11 @@ function validatePhone(phone: string, country: string): string | null {
 
 export function validateActivity(a: Activity): FieldError[] {
   const errs: FieldError[] = [];
-  // Reverse BSM collects Exporter Details / Outcome Tracking / Remarks & Documents.
-  // Every other event type (BSM, Trade Delegation, Virtual BSM, Exhibition) only collects Buyer Details.
+  // Reverse BSM collects Exporter Details AND Buyer Details, plus Outcome
+  // Tracking / Remarks & Documents. BSM (Buyer-Seller Meet) — and the Buyer
+  // Data workflow, which always uses 'Buyer-Seller Meet' or 'Trade Show' —
+  // collect Buyer Details only. Buyer Details are therefore required in
+  // every case; Exporter Details are required additionally for Reverse BSM.
   const isReverseBSM = a.event.eventType === 'Reverse BSM';
 
   // Mandatory fields
@@ -202,12 +205,11 @@ export function validateActivity(a: Activity): FieldError[] {
   if (isReverseBSM) {
     if (!isPresent(a.exporter.exporterName)) errs.push({ field: 'exporter.exporterName', message: 'Exporter name is required.' });
     if (!isPresent(a.exporter.productCategory)) errs.push({ field: 'exporter.productCategory', message: 'Product category is required.' });
-  } else {
-    if (!isPresent(a.buyer.buyerName)) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
-    if (!isPresent(a.buyer.country)) errs.push({ field: 'buyer.country', message: 'Country is required.' });
-    if (!isPresent(a.buyer.phone)) errs.push({ field: 'buyer.phone', message: 'Phone / WhatsApp number is required.' });
-    if (!isPresent(a.buyer.passportNumber)) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required.' });
   }
+  if (!isPresent(a.buyer.buyerName)) errs.push({ field: 'buyer.buyerName', message: 'Buyer name is required.' });
+  if (!isPresent(a.buyer.country)) errs.push({ field: 'buyer.country', message: 'Country is required.' });
+  if (!isPresent(a.buyer.phone)) errs.push({ field: 'buyer.phone', message: 'Phone / WhatsApp number is required.' });
+  if (!isPresent(a.buyer.passportNumber)) errs.push({ field: 'buyer.passportNumber', message: 'Passport number is required.' });
 
   // IEC: alphanumeric only, 8–12 chars, no special characters or spaces.
   if (isFilled(a.exporter.iecNumber) && !IEC_RE.test(a.exporter.iecNumber)) {
