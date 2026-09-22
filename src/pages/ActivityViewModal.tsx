@@ -67,16 +67,14 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           </Section>
         )}
 
-        {!isReverseBSM && (
-          <Section title="Buyer" icon={<Users size={16} />}>
-            <Row label="Buyer Name" value={a.buyer.buyerName} />
-            <Row label="Company Name" value={a.buyer.company} />
-            <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
-            <Row label="Phone / WhatsApp" value={a.buyer.phone} icon={<Phone size={14} />} />
-            <Row label="Passport Number" value={a.buyer.passportNumber} icon={<Hash size={14} />} />
-            <Row label="Interested Products" value={a.buyer.interestedProducts} />
-          </Section>
-        )}
+        <Section title="Buyer" icon={<Users size={16} />}>
+          <Row label="Buyer Name" value={a.buyer.buyerName} />
+          <Row label="Company Name" value={a.buyer.company} />
+          <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
+          <Row label="Phone / WhatsApp" value={a.buyer.phone} icon={<Phone size={14} />} />
+          <Row label="Passport Number" value={a.buyer.passportNumber} icon={<Hash size={14} />} />
+          <Row label="Interested Products" value={a.buyer.interestedProducts} />
+        </Section>
 
         {isReverseBSM && (
         <Section title="Outcome Tracking" icon={<Handshake size={16} />}>
