@@ -97,7 +97,7 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
       return;
     }
     setSheetRows(rows);
-    const suggested = autoSuggestMapping(rows.headers);
+    const suggested = autoSuggestMapping(rows.headers, workflowType);
     setMapping(isBuyerData
       ? Object.fromEntries(Object.entries(suggested).map(([header, target]) => [header, availableFields.some((f) => f.key === target) ? target : 'ignore'])) as ColumnMapping
       : suggested,
@@ -420,9 +420,11 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
                     <td className="table-td">{r.activity.buyer.country || '—'}</td>
                     <td className="table-td">
                       {r.errors.length > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-300" title={r.errors.map((e) => e.message).join('\n')}>
-                          <AlertTriangle size={13} /> {r.errors.length} error{r.errors.length > 1 ? 's' : ''}
-                        </span>
+                        <div className="text-red-600 dark:text-red-300 text-xs space-y-0.5 max-w-[320px]">
+                          {r.errors.map((e, i) => (
+                            <p key={i} className="flex items-start gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {e.message}</p>
+                          ))}
+                        </div>
                       ) : r.duplicate ? (
                         <span className="inline-flex items-center gap-1 text-saffron-600 dark:text-saffron-300" title="Same office, date, exporter and buyer already exist.">
                           <AlertTriangle size={13} /> Possible duplicate
