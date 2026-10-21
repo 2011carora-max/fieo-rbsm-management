@@ -86,7 +86,7 @@ function Shell() {
           {effectiveRoute === 'settings' && <SettingsPage />}
         </main>
         <footer className="px-4 lg:px-6 py-4 text-center text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800 no-print">
-          FIEO RBSM Management System · Federation of Indian Export Organisations · Ministry of Commerce &amp; Industry, Government of India
+          FIEO Buyer Management System · Federation of Indian Export Organisations · Ministry of Commerce &amp; Industry, Government of India
         </footer>
       </div>
     </div>

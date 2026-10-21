@@ -1,4 +1,4 @@
-// Core domain types for the FIEO RBSM Management System.
+// Core domain types for the FIEO Buyer Management System.
 // Kept framework-agnostic so the same shapes work against a future REST API.
 
 export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'JPY';
