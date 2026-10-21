@@ -765,15 +765,45 @@ export function buildImportedRows(
       updatedAt: nowIso,
     };
 
-    // Buyer Data: no buyer field is mandatory — a missing value is stored as
-    // N/A, and an unusual phone/passport format is only a warning (the value
-    // is kept as written). Only the batch-level office/date and invalid
-    // numbers still block a row.
     const allIssues = validateActivity(activity);
-    const BLOCKING = new Set(['event.regionalOffice', 'event.eventDate', 'mou.expectedValue', 'orderInProcess.estimatedValue', 'orderPlaced.finalValue']);
-    const errors = workflowType === 'buyer-data' ? allIssues.filter((e) => BLOCKING.has(e.field)) : allIssues;
-    const warnings = workflowType === 'buyer-data' ? allIssues.filter((e) => !BLOCKING.has(e.field)) : [];
     const duplicate = isDuplicateActivity(activity, [...existingActivities, ...importedSoFar]);
+    let errors: FieldError[];
+    let warnings: FieldError[] = [];
+
+    if (workflowType === 'buyer-data') {
+      // Buyer Data only: nothing in the file blocks a row. Every problem — a
+      // missing value, an unusual phone/passport/email format, a likely
+      // duplicate — is written into the row's remarks as a "Data check" note,
+      // so the row is imported and whoever reviews it can see what to fix.
+      // Only the batch-level office/date (entered in step 3) can stop a row.
+      const BLOCKING = new Set(['event.regionalOffice', 'event.eventDate']);
+      errors = allIssues.filter((e) => BLOCKING.has(e.field));
+      const formatIssues = allIssues.filter((e) => !BLOCKING.has(e.field) && !/is required/i.test(e.message));
+
+      const keyFields: Array<[string, string]> = [
+        ['Buyer name', activity.buyer.buyerName], ['Buyer company', activity.buyer.company],
+        ['Country', activity.buyer.country], ['Phone / WhatsApp', activity.buyer.phone],
+        ['Email', activity.buyer.email], ['Passport number', activity.buyer.passportNumber],
+      ];
+      const missing = keyFields.filter(([, v]) => !v || v.trim().toUpperCase() === NA).map(([label]) => label);
+
+      const checkLines = [
+        missing.length ? `Missing: ${missing.join(', ')}.` : '',
+        ...formatIssues.map((e) => e.message),
+        duplicate ? 'Possible duplicate: another buyer record with the same name exists for this office and event date.' : '',
+      ].filter(Boolean);
+
+      if (checkLines.length) {
+        const note = `Data check (imported from file, data row ${idx + 1}):\n- ${checkLines.join('\n- ')}`;
+        const existing = activity.remarks.general && activity.remarks.general !== NA ? activity.remarks.general : '';
+        activity.remarks.general = existing ? `${existing}\n\n${note}` : note;
+      }
+      warnings = checkLines.map((message) => ({ field: 'remarks.general', message }));
+    } else {
+      // RBSM / Feedback import: unchanged — any validation problem stops the row.
+      errors = allIssues;
+    }
+
     if (errors.length === 0) importedSoFar.push(activity);
 
     results.push({ rowNumber: idx + 1, activity, errors, warnings, duplicate, include: errors.length === 0 });

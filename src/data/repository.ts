@@ -383,7 +383,7 @@ export async function saveActivity(activity: Activity, removedDocumentIds: strin
     // a race between two concurrent submissions for the same office/date/
     // exporter/buyer. Surface a message the UI's existing catch/toast can show.
     if (upsertErr.code === '23505') {
-      throw new Error('Another record with the same office, date, exporter and buyer was just saved by someone else. Please review the activity list before retrying.');
+      throw new Error('Duplicate: a record with the same office, event date, exporter and buyer name already exists (the database blocks this).');
     }
     throw upsertErr;
   }
