@@ -49,7 +49,7 @@ export function LoginPage() {
           </div>
           <div className="relative max-w-md">
             <h2 className="font-serif text-3xl lg:text-4xl font-bold leading-tight">
-              RBSM Management System
+              Buyer Management System
             </h2>
             <p className="mt-4 text-fieo-100 text-sm lg:text-base leading-relaxed">
               A centralized portal to monitor and evaluate the outcomes of Buyer-Seller Meets
@@ -71,12 +71,12 @@ export function LoginPage() {
               <FieoLogo size={48} />
               <div>
                 <h1 className="font-serif text-xl font-bold text-fieo-700 dark:text-white">FIEO</h1>
-                <p className="text-xs text-gray-500">RBSM Management System</p>
+                <p className="text-xs text-gray-500">Buyer Management System</p>
               </div>
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sign in</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Access the FIEO RBSM outcome tracking portal.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Access the FIEO Buyer Management System.</p>
 
             <form onSubmit={submit} className="mt-8 space-y-5">
               <div>

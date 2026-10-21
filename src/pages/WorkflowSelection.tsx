@@ -31,7 +31,7 @@ export function WorkflowSelection({ onSelect }: WorkflowSelectionProps) {
             <FieoLogo size={56} />
             <div>
               <h1 className="font-serif text-2xl font-bold text-fieo-700 dark:text-white">FIEO</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">RBSM Management System</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Buyer Management System</p>
             </div>
           </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
@@ -114,7 +114,7 @@ export function WorkflowSelection({ onSelect }: WorkflowSelectionProps) {
       </div>
 
       <footer className="px-4 lg:px-6 py-4 text-center text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800">
-        FIEO RBSM Management System · Federation of Indian Export Organisations · Ministry of Commerce &amp; Industry, Government of India
+        FIEO Buyer Management System · Federation of Indian Export Organisations · Ministry of Commerce &amp; Industry, Government of India
       </footer>
     </div>
   );
