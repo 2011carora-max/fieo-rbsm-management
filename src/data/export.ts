@@ -119,7 +119,7 @@ export function printReport(activities: Activity[], meta: ReportMeta): void {
   @page { size: A4 landscape; margin: 14mm; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a3d72; margin: 0; }
   .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #1f4a8a; padding-bottom: 12px; }
-  .logo { width: 64px; height: 64px; border-radius: 12px; background: #1f4a8a; color: #fff; font-family: Georgia, serif; font-size: 30px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .logo { width: 64px; height: 64px; object-fit: contain; }
   .title h1 { margin: 0; font-size: 18px; color: #1a3d72; }
   .title p { margin: 2px 0 0; font-size: 12px; color: #555; }
   .govt { margin-left: auto; text-align: right; font-size: 11px; color: #555; }
@@ -137,7 +137,7 @@ export function printReport(activities: Activity[], meta: ReportMeta): void {
 </style></head>
 <body>
   <div class="header">
-    <div class="logo">F</div>
+    <img class="logo" src="${window.location.origin}/fieo-logo.png" alt="FIEO logo" />
     <div class="title">
       <h1>Federation of Indian Export Organisations</h1>
       <p>Ministry of Commerce &amp; Industry, Government of India — RBSM Outcome Tracking Portal</p>
@@ -162,7 +162,7 @@ export function printReport(activities: Activity[], meta: ReportMeta): void {
     <div>Estimated Orders: <strong>${totals.estimated.toLocaleString('en-IN')}</strong></div>
     <div>Confirmed Orders: <strong>${totals.confirmed.toLocaleString('en-IN')}</strong></div>
   </div>
-  <div class="footer"><span>FIEO RBSM Management System — Confidential</span><span>Page <span id="p"></span></span></div>
+  <div class="footer"><span>FIEO Buyer Management System — Confidential</span><span>Page <span id="p"></span></span></div>
   <script>
     // Best-effort page numbering via onafterprint is unreliable; CSS @page handles it for most browsers.
     window.onload = () => setTimeout(() => window.print(), 300);
