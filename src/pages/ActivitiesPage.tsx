@@ -73,7 +73,7 @@ export function ActivitiesPage({ workflowType }: { workflowType: 'feedback' | 'b
     if (query.trim()) {
       const q = query.toLowerCase();
       rows = rows.filter((a) =>
-        [a.id, a.event.bsmName, a.exporter.exporterName, a.exporter.companyName, a.buyer.buyerName, a.buyer.company, a.buyer.country, a.exporter.productCategory]
+        [a.id, a.event.bsmName, a.exporter.exporterName, a.exporter.companyName, a.buyer.buyerName, a.buyer.company, a.buyer.country, a.exporter.productCategory, a.remarks.general]
           .join(' ').toLowerCase().includes(q),
       );
     }

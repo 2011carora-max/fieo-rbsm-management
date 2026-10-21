@@ -47,6 +47,7 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const [failures, setFailures] = useState<{ rowNumber: number; reason: string }[]>([]);
   const isBuyerData = workflowType === 'buyer-data';
   const availableFields = useMemo(
     () => isBuyerData ? TARGET_FIELDS.filter((f) => f.group === '—' || f.group === 'Buyer') : TARGET_FIELDS,
@@ -63,6 +64,7 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
     setMapping({});
     setImportedRows([]);
     setProgress({ done: 0, total: 0, failed: 0 });
+    setFailures([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -135,21 +137,50 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
     setImporting(true);
     setProgress({ done: 0, total: toImport.length, failed: 0 });
     let failed = 0;
+    const failedRows: { rowNumber: number; reason: string }[] = [];
     for (const row of toImport) {
       try {
         await upsert(row.activity);
       } catch (err) {
         console.error('ImportPage: failed to save row', row.rowNumber, err);
         failed++;
+        const e = err as { message?: string; details?: string; code?: string };
+        failedRows.push({ rowNumber: row.rowNumber, reason: [e?.message ?? String(err), e?.details, e?.code ? `(code ${e.code})` : ''].filter(Boolean).join(' ') });
       }
       setProgress((p) => ({ ...p, done: p.done + 1, failed }));
     }
+    setFailures(failedRows);
     setImporting(false);
     setStep(6);
     await refresh();
     if (failed === 0) notify(`Imported ${toImport.length} activities.`, 'success');
-    else notify(`Imported ${toImport.length - failed} activities, ${failed} failed. See console for details.`, 'warning');
+    else notify(`Imported ${toImport.length - failed} activities, ${failed} failed. The reasons are listed on the next screen.`, 'warning');
   };
+
+  /** Failed rows exactly as they were in the source file, plus the reason — fix and re-import just these. */
+  const downloadFailedRows = () => {
+    if (!sheetRows || failures.length === 0) return;
+    const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const header = ['Row', ...sheetRows.headers, 'Reason'];
+    const lines = failures.map((f) => {
+      const src = sheetRows.rows[f.rowNumber - 1] ?? {};
+      return [String(f.rowNumber), ...sheetRows.headers.map((h) => src[h] ?? ''), f.reason].map(esc).join(',');
+    });
+    const blob = new Blob(['\ufeff' + [header.map(esc).join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `failed-rows-${fileName.replace(/\.[^.]+$/, '') || 'import'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /** Group identical reasons so 3,000 failures read as a few lines, not a wall of text. */
+  const failureSummary = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of failures) m.set(f.reason, (m.get(f.reason) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [failures]);
 
   const groupedFields = useMemo(() => {
     const groups = new Map<string, typeof TARGET_FIELDS>();
@@ -474,10 +505,24 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
             message={`${progress.done - progress.failed} activities imported${progress.failed > 0 ? `, ${progress.failed} failed` : ''}. Head to the Activities page to review them.`}
             action={
               <div className="flex gap-2 justify-center">
+                {failures.length > 0 && <button className="btn-primary" onClick={downloadFailedRows}>Download failed rows (CSV)</button>}
                 <button className="btn-secondary" onClick={reset}><RotateCcw size={16} /> Import Another File</button>
               </div>
             }
           />
+          {failureSummary.length > 0 && (
+            <div className="mt-6 text-left max-w-2xl mx-auto">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Why rows failed</p>
+              <ul className="space-y-1.5">
+                {failureSummary.map(([reason, count]) => (
+                  <li key={reason} className="flex items-start gap-2 text-sm text-red-600 dark:text-red-300">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span><strong>{count} row{count > 1 ? 's' : ''}:</strong> {reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

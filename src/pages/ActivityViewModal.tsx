@@ -76,6 +76,7 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Email" value={a.buyer.email} />
           <Row label="Website" value={a.buyer.website} />
           <Row label="Interested Products" value={a.buyer.interestedProducts} />
+          {!isFeedback && <Row label="Remarks" value={a.remarks.general} />}
         </Section>
 
         {isFeedback && (
