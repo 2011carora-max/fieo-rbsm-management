@@ -26,11 +26,36 @@ export async function parseWorkbookFile(file: File): Promise<ParsedWorkbook> {
   const wb = XLSX.read(buf, { type: 'array' });
   const sheets: ParsedSheet[] = wb.SheetNames.map((name) => {
     const ws = wb.Sheets[name];
-    const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '', raw: false }) as unknown[][];
+    const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '', raw: false, blankrows: true }) as unknown[][];
     const matrix = raw.map((row) => row.map((cell) => (cell === null || cell === undefined ? '' : String(cell).trim())));
+    fixScientificNumbers(ws, matrix);
     return { name, matrix, suggestedHeaderRow: detectHeaderRow(matrix) };
   });
   return { sheets };
+}
+
+/**
+ * Excel shows long numbers in "General" format as e.g. 9.19877E+11, and
+ * that's the text sheet_to_json returns — so a 12-digit phone number (with
+ * country code) or an all-digit passport number was being imported as a
+ * mangled value and then failing validation. Put the full digits back from
+ * the cell's underlying numeric value.
+ */
+function fixScientificNumbers(ws: XLSX.WorkSheet, matrix: string[][]): void {
+  if (!ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const row = matrix[r - range.s.r];
+    if (!row) continue;
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (!cell || cell.t !== 'n' || typeof cell.v !== 'number') continue;
+      const idx = c - range.s.c;
+      if (/e[+-]?\d+$/i.test(row[idx] ?? '') && Number.isInteger(cell.v)) {
+        row[idx] = cell.v.toLocaleString('fullwide', { useGrouping: false });
+      }
+    }
+  }
 }
 
 /**
@@ -254,11 +279,33 @@ const EXACT_HEADER_ALIASES: Record<string, TargetKey> = {
   'remarks': 'remarks.general',
 };
 
+/**
+ * In a Buyer Data file every contact column belongs to the BUYER — there is
+ * no exporter. The feedback-oriented guesses above send "Mobile", "Email",
+ * "Product", "Name" etc. to exporter fields, which the Buyer Data importer
+ * then drops, leaving every row without a buyer phone (a required field).
+ */
+function guessBuyerTarget(norm: string): TargetKey | null {
+  if (/passport/.test(norm)) return 'buyer.passportNumber';
+  if (/e-?mail/.test(norm)) return 'buyer.email';
+  if (/mobile|phone|whats\s*app|contact\s*(no|number|#)|^tel|\bcell\b/.test(norm)) return 'buyer.phone';
+  if (/count?ry|nationality/.test(norm)) return 'buyer.country';
+  if (/company|organi[sz]ation|firm|business name/.test(norm)) return 'buyer.company';
+  if (/product|item|interest|requirement|sector/.test(norm)) return 'buyer.interestedProducts';
+  if (/details|profile/.test(norm)) return 'composite.buyerDetails';
+  if (/name|delegate|buyer|participant|representative|person/.test(norm)) return 'buyer.buyerName';
+  return null;
+}
+
 /** Best-effort auto-mapping from header text, so the user starts from a sensible default instead of a blank form. */
-export function autoSuggestMapping(headers: string[]): ColumnMapping {
+export function autoSuggestMapping(headers: string[], workflowType: 'feedback' | 'buyer-data' = 'feedback'): ColumnMapping {
   const mapping: ColumnMapping = {};
   for (const h of headers) {
     const norm = normalizeHeader(h);
+    if (workflowType === 'buyer-data') {
+      mapping[h] = /^(s\.?\s?no\.?|sl\.?\s?no\.?|sr\.?\s?no\.?|#)$/.test(norm) ? 'ignore' : (guessBuyerTarget(norm) ?? 'ignore');
+      continue;
+    }
     mapping[h] = EXACT_HEADER_ALIASES[norm] ?? guessTarget(norm);
   }
   return mapping;
@@ -683,7 +730,7 @@ export function buildImportedRows(
         phone: withNA(buyerPhoneSan.clean),
         interestedProducts: withNA(collect(row, headers, 'buyer.interestedProducts', mapping, true)),
         meetingCount: 1,
-        passportNumber: withNA(collect(row, headers, 'buyer.passportNumber', mapping, false)),
+        passportNumber: withNA(collect(row, headers, 'buyer.passportNumber', mapping, false).replace(/[\s-]/g, '').toUpperCase()),
       },
       mou: {
         signed: mouSigned,
