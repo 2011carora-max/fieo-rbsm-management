@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { COUNTRIES } from '@/types';
 import type { Activity, EventType } from '@/types';
 import { nextActivityId } from '@/data/repository';
-import { validateActivity, validateBuyerDataImport, isDuplicateActivity, type FieldError } from '@/data/validation';
+import { validateActivity, isDuplicateActivity, type FieldError } from '@/data/validation';
 import { classifyOutcomeFromRemark } from '@/data/outcomeClassifier';
 
 // ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ export type TargetKey =
   | 'exporter.email' | 'exporter.phone' | 'exporter.website' | 'exporter.address'
   | 'composite.sellerBlock' | 'composite.exporterDetails'
   | 'buyer.buyerName' | 'buyer.company' | 'buyer.country' | 'buyer.phone' | 'buyer.email'
-  | 'buyer.interestedProducts' | 'buyer.passportNumber'
+  | 'buyer.interestedProducts' | 'buyer.passportNumber' | 'buyer.website'
   | 'composite.buyerBlock' | 'composite.buyerDetails' | 'composite.buyerCompanyCountry'
   | 'mou.signed' | 'mou.expectedValue' | 'mou.expectedValueUsd' | 'mou.expectedValueInr'
   | 'orderInProcess.active'
@@ -185,6 +185,7 @@ export const TARGET_FIELDS: TargetFieldMeta[] = [
   { key: 'buyer.country', label: 'Buyer Country', group: 'Buyer' },
   { key: 'buyer.phone', label: 'Buyer Phone', group: 'Buyer' },
   { key: 'buyer.email', label: 'Buyer Email', group: 'Buyer' },
+  { key: 'buyer.website', label: 'Buyer Website', group: 'Buyer' },
   { key: 'buyer.interestedProducts', label: 'Products / Items of Interest', group: 'Buyer', concatenable: true },
   { key: 'buyer.passportNumber', label: 'Passport Number', group: 'Buyer' },
 
@@ -288,6 +289,7 @@ const EXACT_HEADER_ALIASES: Record<string, TargetKey> = {
 function guessBuyerTarget(norm: string): TargetKey | null {
   if (/passport/.test(norm)) return 'buyer.passportNumber';
   if (/e-?mail/.test(norm)) return 'buyer.email';
+  if (/web\s*site|^web$|^url$|www/.test(norm)) return 'buyer.website';
   if (/mobile|phone|whats\s*app|contact\s*(no|number|#)|^tel|\bcell\b/.test(norm)) return 'buyer.phone';
   if (/count?ry|nationality/.test(norm)) return 'buyer.country';
   if (/company|organi[sz]ation|firm|business name/.test(norm)) return 'buyer.company';
@@ -327,7 +329,7 @@ function guessTarget(norm: string): TargetKey {
   if (/exporter/.test(norm) && /name/.test(norm)) return 'exporter.exporterName';
   if (/seller/.test(norm) && /name/.test(norm)) return 'exporter.exporterName';
   if (/e-?mail/.test(norm)) return /buyer/.test(norm) ? 'buyer.email' : 'exporter.email';
-  if (/website/.test(norm)) return 'exporter.website';
+  if (/website/.test(norm)) return /buyer/.test(norm) ? 'buyer.website' : 'exporter.website';
   if (/district|address/.test(norm)) return 'exporter.address';
   if ((/buyer/.test(norm) && /name/.test(norm)) || /contact person|name of the person/.test(norm)) return 'buyer.buyerName';
   if (/buyer.*company/.test(norm)) return 'buyer.company';
@@ -481,6 +483,8 @@ export interface ImportedRow {
   rowNumber: number; // 1-based, matches spreadsheet row (excluding header)
   activity: Activity;
   errors: FieldError[];
+  /** Problems worth a look that don't stop the row importing (Buyer Data: odd phone/passport formats). */
+  warnings: FieldError[];
   duplicate: boolean;
   include: boolean;
 }
@@ -727,10 +731,11 @@ export function buildImportedRows(
         country: withNA(buyerCountry),
         city: '',
         email: withNA(buyerEmailSan.clean),
-        phone: withNA(buyerPhoneSan.clean),
+        phone: withNA(buyerPhoneSan.clean || (workflowType === 'buyer-data' ? buyerPhoneRaw : '')),
         interestedProducts: withNA(collect(row, headers, 'buyer.interestedProducts', mapping, true)),
         meetingCount: 1,
         passportNumber: withNA(collect(row, headers, 'buyer.passportNumber', mapping, false).replace(/[\s-]/g, '').toUpperCase()),
+        website: withNA(collect(row, headers, 'buyer.website', mapping, false)),
       },
       mou: {
         signed: mouSigned,
@@ -760,14 +765,18 @@ export function buildImportedRows(
       updatedAt: nowIso,
     };
 
-    const errors = [
-      ...validateActivity(activity),
-      ...(workflowType === 'buyer-data' ? validateBuyerDataImport(activity) : []),
-    ];
+    // Buyer Data: no buyer field is mandatory — a missing value is stored as
+    // N/A, and an unusual phone/passport format is only a warning (the value
+    // is kept as written). Only the batch-level office/date and invalid
+    // numbers still block a row.
+    const allIssues = validateActivity(activity);
+    const BLOCKING = new Set(['event.regionalOffice', 'event.eventDate', 'mou.expectedValue', 'orderInProcess.estimatedValue', 'orderPlaced.finalValue']);
+    const errors = workflowType === 'buyer-data' ? allIssues.filter((e) => BLOCKING.has(e.field)) : allIssues;
+    const warnings = workflowType === 'buyer-data' ? allIssues.filter((e) => !BLOCKING.has(e.field)) : [];
     const duplicate = isDuplicateActivity(activity, [...existingActivities, ...importedSoFar]);
     if (errors.length === 0) importedSoFar.push(activity);
 
-    results.push({ rowNumber: idx + 1, activity, errors, duplicate, include: errors.length === 0 });
+    results.push({ rowNumber: idx + 1, activity, errors, warnings, duplicate, include: errors.length === 0 });
   });
 
   return results;

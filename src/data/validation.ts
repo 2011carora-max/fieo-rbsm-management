@@ -279,6 +279,9 @@ export function validateBuyerDataImport(a: Activity): FieldError[] {
 }
 
 export function isDuplicateActivity(a: Activity, all: Activity[]): boolean {
+  // Buyer Data rows without a buyer name (stored as N/A) can't be told apart
+  // by name, so they're never flagged as duplicates of each other.
+  if (a.workflowType === 'buyer-data' && !isFilled(a.buyer.buyerName)) return false;
   return all.some(
     (x) =>
       x.id !== a.id &&
