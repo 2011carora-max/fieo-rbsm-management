@@ -1,19 +1,15 @@
 import { cn } from '@/lib/cn';
 
-// FIEO logo mark — a stylized "F" badge in the official blue with a saffron accent bar.
-// Used in the sidebar, top nav, login, and print headers.
+// FIEO logo — the official multicolour FIEO mark (public/fieo-logo.png).
+// Shown on a white tile so it stays clear on the blue login panel and in dark mode.
+// Used in the sidebar, top nav, login, and workflow selection screens.
 export function FieoLogo({ size = 40, className }: { size?: number; className?: string }) {
   return (
     <div
-      className={cn('relative shrink-0 rounded-xl bg-fieo-600 flex items-center justify-center shadow-soft', className)}
-      style={{ width: size, height: size }}
-      aria-label="FIEO logo"
-      role="img"
+      className={cn('relative shrink-0 rounded-xl bg-white flex items-center justify-center shadow-soft overflow-hidden', className)}
+      style={{ width: size, height: size, padding: Math.max(2, Math.round(size * 0.06)) }}
     >
-      <span className="font-serif font-bold text-white" style={{ fontSize: size * 0.5 }}>
-        F
-      </span>
-      <span className="absolute bottom-1 left-1 right-1 h-[3px] rounded-full bg-saffron-500" />
+      <img src="/fieo-logo.png" alt="FIEO logo" className="w-full h-full object-contain" draggable={false} />
     </div>
   );
 }
