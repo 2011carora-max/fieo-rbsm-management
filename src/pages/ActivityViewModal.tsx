@@ -73,6 +73,8 @@ export function ActivityViewModal({ open, onClose, activity }: { open: boolean; 
           <Row label="Country" value={a.buyer.country} icon={<Globe2 size={14} />} />
           <Row label="Phone / WhatsApp" value={a.buyer.phone} icon={<Phone size={14} />} />
           <Row label="Passport Number" value={a.buyer.passportNumber} icon={<Hash size={14} />} />
+          <Row label="Email" value={a.buyer.email} />
+          <Row label="Website" value={a.buyer.website} />
           <Row label="Interested Products" value={a.buyer.interestedProducts} />
         </Section>
 

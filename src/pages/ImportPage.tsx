@@ -425,6 +425,13 @@ export function ImportPage({ workflowType }: { workflowType: 'feedback' | 'buyer
                             <p key={i} className="flex items-start gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {e.message}</p>
                           ))}
                         </div>
+                      ) : r.warnings.length > 0 ? (
+                        <div className="text-saffron-600 dark:text-saffron-300 text-xs space-y-0.5 max-w-[320px]">
+                          <p className="flex items-center gap-1 text-green-600 dark:text-green-300"><CheckCircle2 size={12} /> Will be imported{r.duplicate ? ' (possible duplicate)' : ''}</p>
+                          {r.warnings.map((e, i) => (
+                            <p key={i} className="flex items-start gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {e.message}</p>
+                          ))}
+                        </div>
                       ) : r.duplicate ? (
                         <span className="inline-flex items-center gap-1 text-saffron-600 dark:text-saffron-300" title="Same office, date, exporter and buyer already exist.">
                           <AlertTriangle size={13} /> Possible duplicate
